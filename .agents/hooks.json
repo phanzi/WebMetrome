@@ -2,11 +2,6 @@
   "version": 1,
   "hooks": {
     "sessionStart": [{ "command": "nvm use" }],
-    "afterAgentResponse": [
-      {
-        "type": "prompt",
-        "prompt": "verify-rules를 실행하고 결과를 확인하여, 문제가 발생했다면 수정하라"
-      }
-    ]
+    "afterAgentResponse": []
   }
 }
