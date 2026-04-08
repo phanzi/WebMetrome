@@ -8,8 +8,7 @@ interface SetlistItem {
   beats: number;
 }
 
-const SERVER_URL = "http://localhost:4000";
-// const SERVER_URL = "https://relay.web-sync-metronome.ohjimin.com";
+const SERVER_URL = import.meta.env.VITE_RELAY_URL || "http://localhost:4000";
 
 export default function App() {
   const [bpm, setBpm] = useState(
@@ -198,6 +197,7 @@ export default function App() {
                   setIsLive(true);
                   setIsMaster(true);
                   socketRef.current?.emit("join_room", newId);
+                  console.log(SERVER_URL);
                 }}
                 style={styles.shareBtn}
               >

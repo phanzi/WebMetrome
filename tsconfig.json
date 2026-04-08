@@ -30,7 +30,7 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts",
     "src/shared/scripts/format-linear.mjs",
-    "src/server.ts"
+    "src/server.ㅓㄴ"
   ],
   "exclude": ["node_modules"]
 }
