@@ -1,0 +1,64 @@
+---
+description: Layout 컴포넌트 props는 Next.js LayoutProps 사용
+globs: src/**/layout.tsx
+alwaysApply: false
+---
+
+# Layout Props Type
+
+모든 `layout.tsx`의 Layout 컴포넌트 props 타입은 **Next.js가 제공하는 `LayoutProps`**를 사용한다.
+
+## 규칙
+
+1. **타입**: `LayoutProps<Route>` — Next.js typed routes로 생성된 **전역 타입**이므로 import하지 않는다.
+2. **첫 번째 generic**: 해당 레이아웃의 **URL path** (예: `"/admin"`, `"/kiosk/teams"`, `"/auth/login"`).
+3. **타입 위치**: props 타입을 별도 type alias로 빼지 말고, **파라미터에 `LayoutProps<Route>`를 인라인**으로 쓴다.
+
+## Type Error 발생 시
+
+URL path를 정확히 입력했는데도 type error가 나면, `.next` 폴더에 해당 경로 타입이 아직 생성되지 않은 경우다. **`next dev`(또는 `npm run dev` / `pnpm run dev`)를 한 번 실행**하면 연관 타입이 자동 생성되어 type error가 사라진다.
+
+## 예시
+
+```typescript
+// ❌ BAD - 인라인 타입
+type Props = {
+  children: ReactNode;
+  params?: Promise<{ id: string }>;
+};
+
+// ❌ BAD - React 타입만 사용
+import type { ReactNode } from "react";
+type Props = { children: ReactNode };
+
+// ❌ BAD - props 타입을 별도로 빼기
+type Props = LayoutProps<"/">;
+export default function Layout(props: Props) { ... }
+
+// ❌ BAD - 파라미터에서 구조분해
+export default function Layout({ children }: LayoutProps<"/kiosk/teams">) {
+  return <KioskFormProvider>{children}</KioskFormProvider>;
+}
+
+// ❌ BAD - 파라미터에서 구조분해
+export default function Layout({ children, params }: LayoutProps<"/admin">) {
+  return <div>{children}</div>;
+}
+
+// ✅ GOOD - props + 본문 첫 줄 destructure
+export default function Layout(props: LayoutProps<"/kiosk/teams">) {
+  const { children } = props;
+  return <KioskFormProvider>{children}</KioskFormProvider>;
+}
+
+// ✅ GOOD - params가 있는 레이아웃
+export default function Layout(props: LayoutProps<"/admin">) {
+  const { children, params } = props;
+  return <div>{children}</div>;
+}
+```
+
+## 참고
+
+- `LayoutProps`는 `children`, `params`(동적 세그먼트 시), parallel route 슬롯을 포함한다.
+- layout이 있는 경로만 `LayoutRoutes`에 포함되므로, 첫 번째 generic은 **해당 layout.tsx가 있는 경로**와 일치해야 한다.

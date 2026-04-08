@@ -1,0 +1,8 @@
+---
+description: Use list-all-tools and call-tool commands for MCP tool discovery
+alwaysApply: true
+---
+
+# MCP Tool Discovery Rule
+
+If you can't find an appropriate tool, you can use the `list-all-tools` command to find it. You can execute the tool using the `call-tool` command.

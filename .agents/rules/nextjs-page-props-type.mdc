@@ -1,0 +1,68 @@
+---
+description: Page 컴포넌트 props는 Next.js PageProps 사용
+globs: src/app/**/page.tsx
+alwaysApply: false
+---
+
+# Page Props Type
+
+모든 `page.tsx`의 Page 컴포넌트 props 타입은 **Next.js가 제공하는 `PageProps<>`**를 사용한다.
+
+## 규칙
+
+1. **타입**: `PageProps<Route>` — Next.js typed routes로 생성된 **전역 타입**이므로 import하지 않는다.
+2. **첫 번째 generic**: 해당 페이지의 **URL path** (예: `"/admin/customers"`, `"/admin/orders/[id]"`, `"/auth/login"`).
+3. **파라미터**: `props`로 받고, 본문 첫 줄에서 destructure한다.
+4. **타입 위치**: props 타입을 별도 type alias로 빼지 말고, **파라미터에 `PageProps<Route>`를 인라인**으로 쓴다.
+5. **props 미사용 시**: `searchParams`나 `params`를 전혀 사용하지 않는 페이지는 **props 파라미터와 `PageProps` 타입 정의를 적지 않는다** (파라미터 없이 `function Page()` 형태로 작성).
+
+## Type Error 발생 시
+
+URL path를 정확히 입력했는데도 type error가 나면, `.next` 폴더에 해당 경로 타입이 아직 생성되지 않은 경우다. **`next dev`(또는 `pnpm run dev`)를 한 번 실행**하면 연관 타입이 자동 생성되어 type error가 사라진다.
+
+## 예시
+
+```typescript
+// ❌ BAD - 인라인 타입
+type Props = {
+  searchParams?: Record<string, string | string[] | undefined>;
+  params?: Promise<{ id: string }>;
+};
+
+// ❌ BAD - props 타입을 별도로 빼기
+type Props = PageProps<"/admin/coupons">;
+export default async function Page(props: Props) { ... }
+
+// ❌ BAD - 파라미터에서 구조분해
+export default function Page({ searchParams }: PageProps<"/admin/products">) {
+  // ...
+}
+
+// ❌ BAD - 파라미터에서 구조분해
+export default async function Page({ params, searchParams }: PageProps<"/admin/orders/[id]">) {
+  // ...
+}
+
+// ✅ GOOD - props + 본문 첫 줄 destructure
+export default async function Page(props: PageProps<"/admin/customers">) {
+  const { searchParams } = props;
+  // ...
+}
+
+// ✅ GOOD - params가 있는 페이지
+export default async function Page(props: PageProps<"/admin/orders/[id]">) {
+  const { params, searchParams } = props;
+  const { id } = await params;
+  // ...
+}
+
+// ✅ GOOD - props를 전혀 사용하지 않는 페이지 (params/searchParams 미사용)
+export default function Page() {
+  return <div>...</div>;
+}
+```
+
+## 참고
+
+- `PageProps`는 `params`(동적 세그먼트 시), `searchParams`를 포함한다.
+- `page.tsx`가 있는 경로가 generic에 해당한다 (예: `src/app/admin/customers/page.tsx` → `"/admin/customers"`).

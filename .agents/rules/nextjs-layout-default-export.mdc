@@ -1,0 +1,36 @@
+---
+description: layout.tsx의 export default 컴포넌트 이름은 "Layout"으로 통일
+globs: src/**/layout.tsx
+alwaysApply: false
+---
+
+# Layout Default Export Naming
+
+모든 `layout.tsx` 파일에서 export default 컴포넌트의 이름은 **"Layout"**으로 정한다.
+
+## 규칙
+
+1. **파일**: Next.js App Router의 `layout.tsx` (어떤 경로든)
+2. **컴포넌트 이름**: `export default function Layout(...)` 형태로 정의한다.
+3. **금지**: `RootLayout`, `AdminLayout`, `KioskTeamsLayout` 등 경로/역할을 반영한 다른 이름을 export default에 사용하지 않는다.
+
+## 예시
+
+```typescript
+// ✅ GOOD
+export default function Layout({ children }: Props) {
+  return <div>{children}</div>;
+}
+```
+
+```typescript
+// ❌ BAD - 경로별 이름 사용
+export default function AdminLayout({ children }: Props) {
+  return <div>{children}</div>;
+}
+```
+
+## 이유
+
+- Next.js는 파일명 `layout.tsx`로 레이아웃을 식별하므로, 컴포넌트 이름이 달라도 동작에는 영향이 없다.
+- 프로젝트 전반에서 동일한 이름("Layout")을 사용하면 검색·리팩터링·규칙 적용이 일관된다.
