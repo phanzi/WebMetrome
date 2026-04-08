@@ -1,8 +1,10 @@
 {
-  "name": "client",
-  "private": true,
-  "version": "0.0.0",
+  "name": "web-sync-metronome",
+  "version": "0.1.0",
   "type": "module",
+  "private": false,
+  "author": "phanzi",
+  "license": "MIT",
   "scripts": {
     "server:dev": "node src/server.js",
     "client:dev": "vite --host",
