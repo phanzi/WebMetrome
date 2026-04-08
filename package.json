@@ -11,7 +11,10 @@
     "dev": "concurrently 'npm run client:dev' 'npm run server:dev'",
     "format": "prettier --write .",
     "build": "vite build",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "docker:build": "docker buildx build --platform linux/amd64 -t registry.ohjimin.com/$npm_package_name:$npm_package_version .",
+    "docker:push": "docker push registry.ohjimin.com/$npm_package_name:$npm_package_version",
+    "docker:push:latest": "docker tag registry.ohjimin.com/$npm_package_name:$npm_package_version registry.ohjimin.com/$npm_package_name:latest && docker push registry.ohjimin.com/$npm_package_name:latest"
   },
   "dependencies": {
     "cors": "^2.8.6",
@@ -25,6 +28,7 @@
     "@eslint/js": "^9.39.4",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/express": "^5.0.6",
+    "@types/node": "^25.5.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",

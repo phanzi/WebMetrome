@@ -38,8 +38,9 @@ io.on("connection", (socket) => {
 });
 
 const PORT = 4000;
+const HOST = process.env.HOST ?? "0.0.0.0";
 
-server.listen(PORT, "localhost", () => {
-  console.log(`🚀 서버 실행 중: http://localhost:${PORT}`);
-  console.log(`📢 외부 접속 IP를 확인하세요 (현재: localhost)`);
+server.listen(PORT, HOST, () => {
+  console.log(`🚀 서버 실행 중: http://${HOST}:${PORT}`);
+  console.log(`📢 외부 접속 IP를 확인하세요 (현재: ${HOST})`);
 });

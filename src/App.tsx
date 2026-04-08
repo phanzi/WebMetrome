@@ -9,6 +9,7 @@ interface SetlistItem {
 }
 
 const SERVER_URL = "http://localhost:4000";
+// const SERVER_URL = "https://relay.web-sync-metronome.ohjimin.com";
 
 export default function App() {
   const [bpm, setBpm] = useState(
