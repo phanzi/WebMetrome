@@ -38,7 +38,7 @@ io.on("connection", (socket) => {
 });
 
 const PORT = 4000;
-const HOST = process.env.HOST ?? "localhost";
+const HOST = "localhost";
 
 server.listen(PORT, HOST, () => {
   console.log(`🚀 서버 실행 중: http://${HOST}:${PORT}`);

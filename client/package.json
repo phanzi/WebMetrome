@@ -1,0 +1,26 @@
+{
+  "name": "metronome-client",
+  "version": "0.1.0",
+  "private": false,
+  "author": "phanzi",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite --host --mode dev",
+    "build": "vite build --mode build",
+    "docker:build": "docker buildx build --platform linux/amd64 -t registry.ohjimin.com/$npm_package_name:$npm_package_version .",
+    "docker:push": "docker push registry.ohjimin.com/$npm_package_name:$npm_package_version",
+    "docker:push:latest": "docker tag registry.ohjimin.com/$npm_package_name:$npm_package_version registry.ohjimin.com/$npm_package_name:latest && docker push registry.ohjimin.com/$npm_package_name:latest"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "socket.io-client": "^4.8.3",
+    "vite": "^8.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3"
+  }
+}

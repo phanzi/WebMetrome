@@ -1,4 +1,5 @@
 import react from "@vitejs/plugin-react";
+import path from "path";
 import { defineConfig } from "vite";
 
 // https://vite.dev/config/
@@ -7,8 +8,7 @@ export default defineConfig({
   server: {
     port: 3000,
   },
-  preview: {
-    port: 3000,
-    allowedHosts: ["web-sync-metronome.ohjimin.com"],
+  resolve: {
+    alias: [{ find: "@", replacement: path.resolve(__dirname, "src") }],
   },
 });

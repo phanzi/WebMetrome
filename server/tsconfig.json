@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    /* 기본 빌드 설정 */
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ESNext"],
+    "types": ["node"],
+    "isolatedModules": true, // tsup(esbuild) 사용 시 필수
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowSyntheticDefaultImports": true,
+
+    /* 타입 정의 관련 */
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true, // tsup이 로직을 빌드하므로 타입만 생성
+    "outDir": "dist",
+
+    /* 엄격한 검사 */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": ["src", "tsup.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}
