@@ -19,17 +19,15 @@
     "docker:push": "docker push registry.ohjimin.com/$npm_package_name:$npm_package_version",
     "docker:push:latest": "docker tag registry.ohjimin.com/$npm_package_name:$npm_package_version registry.ohjimin.com/$npm_package_name:latest && docker push registry.ohjimin.com/$npm_package_name:latest"
   },
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "socket.io-client": "^4.8.3",
+    "vite": "^8.0.7"
+  },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
-    "@trivago/prettier-plugin-sort-imports": "^6.0.2",
-    "@xeonlink/prettier-plugin-organize-attributes": "^1.1.0",
-    "eslint": "^9.39.4",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.4.0",
-    "prettier-plugin-curly": "^0.4.1",
-    "prettier-plugin-organize-imports": "^4.3.0",
-    "prettier-plugin-tailwindcss": "^0.7.2",
-    "prettier-plugin-tailwindcss-canonical-classes": "^0.1.4"
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3"
   }
 }

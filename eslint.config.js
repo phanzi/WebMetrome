@@ -27,7 +27,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["src/server.js"],
+    files: ["server/src/server.js"],
     languageOptions: {
       globals: globals.node,
     },
