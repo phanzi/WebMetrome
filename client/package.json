@@ -1,20 +1,12 @@
 {
-  "name": "web-sync-metronome",
-  "version": "0.1.14",
+  "name": "metronome-client",
+  "version": "0.1.0",
   "private": false,
-  "type": "module",
   "author": "phanzi",
   "license": "MIT",
   "scripts": {
-    "server:dev": "node src/server.js",
-    "client:dev": "vite --host --mode dev",
-    "dev": "concurrently 'npm run client:dev' 'npm run server:dev'",
-    "server:start": "node src/server.js",
-    "client:start": "vite preview --host --mode prod",
-    "start": "concurrently 'npm run client:start' 'npm run server:start'",
-    "format": "prettier --write .",
+    "dev": "vite --host --mode dev",
     "build": "vite build --mode build",
-    "lint": "eslint .",
     "docker:build": "docker buildx build --platform linux/amd64 -t registry.ohjimin.com/$npm_package_name:$npm_package_version .",
     "docker:push": "docker push registry.ohjimin.com/$npm_package_name:$npm_package_version",
     "docker:push:latest": "docker tag registry.ohjimin.com/$npm_package_name:$npm_package_version registry.ohjimin.com/$npm_package_name:latest && docker push registry.ohjimin.com/$npm_package_name:latest"
@@ -27,6 +19,7 @@
     "vite": "^8.0.7"
   },
   "devDependencies": {
+    "@types/node": "^25.5.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3"
   }

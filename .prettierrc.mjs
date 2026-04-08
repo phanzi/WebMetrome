@@ -10,7 +10,7 @@ const config = {
     "prettier-plugin-tailwindcss-canonical-classes",
     "prettier-plugin-tailwindcss",
     "@xeonlink/prettier-plugin-organize-attributes",
-    await import("./client/src/scripts/format-linear.mjs").then(
+    await import("./scripts/format-linear.mjs").then(
       (module) => module.default,
     ),
   ],

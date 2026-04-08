@@ -8,7 +8,7 @@ interface SetlistItem {
   beats: number;
 }
 
-const SERVER_URL = import.meta.env.VITE_RELAY_URL || "http://localhost:4000";
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:4000";
 
 export default function App() {
   const [bpm, setBpm] = useState(

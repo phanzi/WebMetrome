@@ -1,12 +1,20 @@
-FROM node:22-alpine
+FROM node:22-alpine AS base
 
+FROM base AS deps
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --frozen-lockfile
+
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-COPY .env.build .env.build
 RUN npm run build
 
-EXPOSE 3000 4000
+FROM base AS runner
+WORKDIR /app
+RUN npm install -g serve
+COPY --from=builder /app/dist ./
 
-CMD ["npm", "run", "start"]
+EXPOSE 3000
+
+CMD ["serve", "-s", "dist", "-l", "3000"]
