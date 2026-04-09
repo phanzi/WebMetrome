@@ -4,8 +4,8 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   target: "es2018", // 트랜스파일 대상
   // format: ["esm", "cjs"], // ESM + CommonJS 포맷 지원
-  format: ["esm"], // ESM 포맷 지원
-  outExtension: (_) => ({ js: ".mjs" }),
+  format: ["cjs"], // CommonJS 포맷 지원
+  // outExtension: (_) => ({ js: ".mjs" }),
   entry: ["src/server.ts"], // 루트 entry 파일
   outDir: "dist", // 출력 디렉토리
 

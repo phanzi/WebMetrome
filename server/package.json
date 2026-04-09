@@ -1,16 +1,16 @@
 {
-  "name": "metronome-server",
-  "version": "0.1.0",
+  "name": "syncron-server",
+  "version": "0.1.2",
   "private": false,
-  "type": "module",
+  "type": "commonjs",
   "author": "phanzi",
   "license": "MIT",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsup",
+    "start": "node dist/server.js",
     "docker:build": "docker buildx build --platform linux/amd64 -t registry.ohjimin.com/$npm_package_name:$npm_package_version .",
-    "docker:push": "docker push registry.ohjimin.com/$npm_package_name:$npm_package_version",
-    "docker:push:latest": "docker tag registry.ohjimin.com/$npm_package_name:$npm_package_version registry.ohjimin.com/$npm_package_name:latest && docker push registry.ohjimin.com/$npm_package_name:latest"
+    "docker:push": "docker push registry.ohjimin.com/$npm_package_name:$npm_package_version"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
