@@ -1,6 +1,6 @@
 {
-  "name": "metronome-client",
-  "version": "0.1.0",
+  "name": "syncron-client",
+  "version": "0.1.1",
   "private": false,
   "author": "phanzi",
   "license": "MIT",
@@ -8,8 +8,7 @@
     "dev": "vite --host --mode dev",
     "build": "vite build --mode build",
     "docker:build": "docker buildx build --platform linux/amd64 -t registry.ohjimin.com/$npm_package_name:$npm_package_version .",
-    "docker:push": "docker push registry.ohjimin.com/$npm_package_name:$npm_package_version",
-    "docker:push:latest": "docker tag registry.ohjimin.com/$npm_package_name:$npm_package_version registry.ohjimin.com/$npm_package_name:latest && docker push registry.ohjimin.com/$npm_package_name:latest"
+    "docker:push": "docker push registry.ohjimin.com/$npm_package_name:$npm_package_version"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^6.0.1",

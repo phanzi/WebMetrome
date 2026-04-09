@@ -6,6 +6,7 @@ COPY package*.json ./
 RUN npm ci --frozen-lockfile
 
 FROM base AS builder
+WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
@@ -13,7 +14,7 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 RUN npm install -g serve
-COPY --from=builder /app/dist ./
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 
