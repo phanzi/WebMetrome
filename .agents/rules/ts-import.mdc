@@ -1,9 +1,8 @@
 ---
 description: TypeScript import - value와 type import를 한 구문에 섞지 않고 구문 분리
-globs: src/**/*.ts,src/**/*.tsx
+globs: **/*.ts,**/*.tsx
 alwaysApply: false
 ---
-
 # ts-import: Value / Type Import 분리
 
 named value import와 named type import를 **같은 import 문**에 쓰지 않는다. value용 import와 type용 import는 **서로 분리된 import 구문**으로 작성한다.
