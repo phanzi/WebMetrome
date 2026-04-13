@@ -1,5 +1,11 @@
 import { Elysia, t } from "elysia";
 
+const ROOM_ID_PATTERN = /^[A-Z0-9]{4,12}$/;
+const MIN_BPM = 20;
+const MAX_BPM = 300;
+const ALLOWED_BEATS = new Set([2, 3, 4, 6, 8]);
+const MIN_CONTROL_INTERVAL_MS = 30;
+
 const clientMessage = t.Union([
   t.Object({
     type: t.Literal("join"),
@@ -26,6 +32,26 @@ type Member = {
 
 const rooms = new Map<string, Map<string, Member>>();
 const connectionRoom = new Map<string, string | null>();
+const lastControlAt = new Map<string, number>();
+
+const normalizeRoomId = (roomId: string): string | null => {
+  const normalized = roomId.trim().toUpperCase();
+  return ROOM_ID_PATTERN.test(normalized) ? normalized : null;
+};
+
+const isValidControlPayload = (payload: {
+  bpm: number;
+  beats: number;
+  isPlaying: boolean;
+}): boolean =>
+  Number.isFinite(payload.bpm) &&
+  Number.isInteger(payload.bpm) &&
+  payload.bpm >= MIN_BPM &&
+  payload.bpm <= MAX_BPM &&
+  Number.isFinite(payload.beats) &&
+  Number.isInteger(payload.beats) &&
+  ALLOWED_BEATS.has(payload.beats) &&
+  typeof payload.isPlaying === "boolean";
 
 function addToRoom(roomId: string, id: string, send: Member["send"]) {
   const key = roomId.toUpperCase();
@@ -76,32 +102,57 @@ export const app = new Elysia()
     response: controlPayload,
     open(ws) {
       connectionRoom.set(ws.id, null);
+      lastControlAt.set(ws.id, 0);
       console.log("새로운 기기 연결됨:", ws.id);
     },
     message(ws, message) {
       const cid = ws.id;
       const prevRoom = connectionRoom.get(cid) ?? null;
       if (message.type === "join") {
+        const rid = normalizeRoomId(message.roomId);
+        if (!rid) {
+          return;
+        }
         if (prevRoom) {
           removeFromRoom(prevRoom, cid);
         }
-        const rid = message.roomId.toUpperCase();
         connectionRoom.set(cid, rid);
         addToRoom(rid, cid, (d) => {
-          ws.send(d);
+          try {
+            ws.send(d);
+          } catch {
+            // Ignore send failures; closed sockets are cleaned up on close event.
+          }
         });
         console.log(`방 입장 완료 - ID: ${cid}, Room: ${rid}`);
         return;
       }
       if (message.type === "control") {
-        const rid = message.roomId.toUpperCase();
-        broadcastControl(rid, cid, {
-          bpm: message.bpm,
-          beats: message.beats,
+        const rid = connectionRoom.get(cid) ?? null;
+        if (!rid) {
+          return;
+        }
+        const now = Date.now();
+        const prevControlAt = lastControlAt.get(cid) ?? 0;
+        if (now - prevControlAt < MIN_CONTROL_INTERVAL_MS) {
+          return;
+        }
+        const payload = {
+          bpm: Math.round(message.bpm),
+          beats: Math.round(message.beats),
           isPlaying: message.isPlaying,
+        };
+        if (!isValidControlPayload(payload)) {
+          return;
+        }
+        lastControlAt.set(cid, now);
+        broadcastControl(rid, cid, {
+          bpm: payload.bpm,
+          beats: payload.beats,
+          isPlaying: payload.isPlaying,
         });
         console.log(
-          `신호 중계 중: Room ${rid} -> BPM ${message.bpm}, Playing: ${message.isPlaying}`,
+          `신호 중계 중: Room ${rid} -> BPM ${payload.bpm}, Playing: ${payload.isPlaying}`,
         );
       }
     },
@@ -110,6 +161,7 @@ export const app = new Elysia()
       const roomId = connectionRoom.get(cid) ?? null;
       removeFromRoom(roomId, cid);
       connectionRoom.delete(cid);
+      lastControlAt.delete(cid);
       console.log(`연결 종료: ${cid}`);
     },
   });

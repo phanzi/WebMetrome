@@ -95,6 +95,9 @@ export default function App() {
   };
 
   const startMetronome = () => {
+    if (timerID.current !== null) {
+      return;
+    }
     if (!audioCtx.current) {
       const AC =
         window.AudioContext ??
@@ -119,8 +122,9 @@ export default function App() {
   };
 
   const stopMetronome = () => {
-    if (timerID.current) {
+    if (timerID.current !== null) {
       cancelAnimationFrame(timerID.current);
+      timerID.current = null;
     }
     setIsPlaying(false);
     setCurrentBeat(0);
