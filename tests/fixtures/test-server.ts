@@ -1,6 +1,6 @@
+import { createApp } from "@server/app";
 import { createServer } from "node:net";
 import { z } from "zod";
-import { createApp } from "../../server/app";
 
 const serverAddressSchema = z.object({
   port: z.number().int().positive(),

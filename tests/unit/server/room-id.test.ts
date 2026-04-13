@@ -1,5 +1,5 @@
+import { normalizeRoomId } from "@server/domain/roomSync";
 import { describe, expect, it } from "bun:test";
-import { normalizeRoomId } from "../../../server/domain/roomSync";
 
 describe("normalizeRoomId", () => {
   it("normalizes lowercase room id", () => {

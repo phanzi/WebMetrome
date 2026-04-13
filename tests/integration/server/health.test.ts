@@ -1,5 +1,5 @@
+import { createApp } from "@server/app";
 import { describe, expect, it } from "bun:test";
-import { createApp } from "../../../server/app";
 
 describe("GET /health", () => {
   it("returns health status payload", async () => {

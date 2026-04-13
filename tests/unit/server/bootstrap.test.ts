@@ -1,5 +1,5 @@
+import { resolvePort } from "@server/index";
 import { describe, expect, it } from "bun:test";
-import { resolvePort } from "../../../server/index";
 
 describe("server bootstrap utilities", () => {
   it("returns fallback port when value is invalid", () => {
