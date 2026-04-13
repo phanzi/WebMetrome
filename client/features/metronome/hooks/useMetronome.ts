@@ -178,10 +178,12 @@ export function useMetronome(params: UseMetronomeParams) {
       }
 
       if (parsed.type === "metronome-state") {
-        setMetronomeState({
+        const next = {
           bpm: parsed.metronome.bpm,
           beatsPerMeasure: parsed.metronome.beats,
-        });
+        };
+        metronomeStateRef.current = next;
+        setMetronomeState(next);
         return;
       }
 

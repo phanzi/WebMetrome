@@ -5,23 +5,6 @@ export type CreateAppOptions = {
   now?: () => number;
 };
 
-const clientMessage = t.Union([
-  t.Object({
-    type: t.Literal("set-metronome"),
-    metronome: t.Object({
-      bpm: t.Number(),
-      beats: t.Number(),
-    }),
-  }),
-  t.Object({
-    type: t.Literal("play-schedule"),
-    at: t.Number(),
-  }),
-  t.Object({
-    type: t.Literal("play-halt"),
-  }),
-]);
-
 const toErrorMessage = (
   code: "INVALID_ROOM" | "UNAUTHORIZED" | "INVALID_PAYLOAD" | "RATE_LIMIT",
 ) => {
@@ -40,7 +23,22 @@ const toErrorMessage = (
 export function createApp(options?: CreateAppOptions) {
   const roomSync = createRoomSyncService({ now: options?.now });
   return new Elysia().ws("/room", {
-    body: clientMessage,
+    body: t.Union([
+      t.Object({
+        type: t.Literal("set-metronome"),
+        metronome: t.Object({
+          bpm: t.Number(),
+          beats: t.Number(),
+        }),
+      }),
+      t.Object({
+        type: t.Literal("play-schedule"),
+        at: t.Number(),
+      }),
+      t.Object({
+        type: t.Literal("play-halt"),
+      }),
+    ]),
     query: t.Object({
       id: t.Optional(t.String()),
     }),
@@ -131,6 +129,9 @@ export function createApp(options?: CreateAppOptions) {
         roomId: joined.roomId,
         metronome: joined.metronomeState,
       });
+      if (joined.replayPlaySchedule) {
+        ws.send(joined.replayPlaySchedule);
+      }
     },
     message(ws, message) {
       if (message.type === "set-metronome") {

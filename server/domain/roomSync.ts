@@ -45,6 +45,8 @@ export type ServerMessage =
       message: string;
     };
 
+type PlayScheduleMessage = Extract<ServerMessage, { type: "play-schedule" }>;
+
 type Member = {
   send: (data: ServerMessage) => void;
 };
@@ -76,6 +78,7 @@ type Room = {
   ownerConnectionId: string;
   members: Set<string>;
   metronomeState: MetronomeState;
+  lastPlaySchedule: PlayScheduleMessage | null;
 };
 
 export const normalizeRoomId = (roomId: string): string | null => {
@@ -186,6 +189,7 @@ export function createRoomSyncService(
         ownerConnectionId: connectionId,
         members: new Set([connectionId]),
         metronomeState: createDefaultMetronomeState(),
+        lastPlaySchedule: null,
       };
 
       rooms.set(roomId, room);
@@ -202,6 +206,7 @@ export function createRoomSyncService(
           roomId: string;
           role: ClientRole;
           metronomeState: MetronomeState;
+          replayPlaySchedule: PlayScheduleMessage | null;
         }
       | {
           ok: false;
@@ -229,6 +234,9 @@ export function createRoomSyncService(
         roomId: normalized,
         role: room.ownerConnectionId === connectionId ? "owner" : "member",
         metronomeState: { ...room.metronomeState },
+        replayPlaySchedule: room.lastPlaySchedule
+          ? { ...room.lastPlaySchedule }
+          : null,
       };
     },
 
@@ -320,11 +328,15 @@ export function createRoomSyncService(
         return { ok: false, code: "INVALID_PAYLOAD" };
       }
 
-      broadcast(roomId, {
+      const schedule: PlayScheduleMessage = {
         type: "play-schedule",
         roomId,
         at,
-      });
+      };
+      room.lastPlaySchedule = schedule;
+      rooms.set(roomId, room);
+
+      broadcast(roomId, schedule);
       return { ok: true, roomId, at };
     },
 
@@ -350,6 +362,9 @@ export function createRoomSyncService(
       if (!canOwnerControl(room, connectionId)) {
         return { ok: false, code: "UNAUTHORIZED" };
       }
+
+      room.lastPlaySchedule = null;
+      rooms.set(roomId, room);
 
       broadcast(roomId, {
         type: "play-halt",

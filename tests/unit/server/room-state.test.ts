@@ -21,6 +21,9 @@ describe("createRoomSyncService room state", () => {
 
     const joined = service.joinRoom("member-1", created.roomId);
     expect(joined.ok).toBe(true);
+    if (joined.ok) {
+      expect(joined.replayPlaySchedule).toBeNull();
+    }
     expect(service.getRoomSize(created.roomId)).toBe(2);
   });
 
@@ -80,6 +83,47 @@ describe("createRoomSyncService room state", () => {
     };
     expect(hostSender).toHaveBeenNthCalledWith(2, haltPayload);
     expect(memberSender).toHaveBeenNthCalledWith(2, haltPayload);
+  });
+
+  it("returns replay play-schedule for late join and clears it on halt", () => {
+    let nowMs = 10_000;
+    const service = createRoomSyncService({ now: () => nowMs });
+    const sender = mock(() => {});
+
+    service.open("host", sender);
+    service.open("member", sender);
+    service.open("late-member", sender);
+    service.open("late-after-halt", sender);
+
+    const created = service.createRoom("host");
+    if (!created.ok) {
+      throw new Error("expected room to be created");
+    }
+    service.joinRoom("member", created.roomId);
+
+    const at = nowMs + 5000;
+    const scheduled = service.relayPlaySchedule("host", { at });
+    expect(scheduled.ok).toBe(true);
+
+    const lateJoined = service.joinRoom("late-member", created.roomId);
+    expect(lateJoined.ok).toBe(true);
+    if (lateJoined.ok) {
+      expect(lateJoined.replayPlaySchedule).toEqual({
+        type: "play-schedule",
+        roomId: created.roomId,
+        at,
+      });
+    }
+
+    nowMs += MIN_CONTROL_INTERVAL_MS;
+    const halted = service.relayPlayHalt("host");
+    expect(halted.ok).toBe(true);
+
+    const joinedAfterHalt = service.joinRoom("late-after-halt", created.roomId);
+    expect(joinedAfterHalt.ok).toBe(true);
+    if (joinedAfterHalt.ok) {
+      expect(joinedAfterHalt.replayPlaySchedule).toBeNull();
+    }
   });
 
   it("cleans up room on close", () => {
