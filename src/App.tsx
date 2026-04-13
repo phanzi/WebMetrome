@@ -1,14 +1,14 @@
-import React, { useEffect, useRef, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import { treaty } from "@elysiajs/eden/treaty2";
+import type { App } from "@server/app";
+import type { CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 
-interface SetlistItem {
-  id: number;
-  name: string;
-  bpm: number;
-  beats: number;
+function apiOrigin(): string {
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return "http://localhost:4000";
 }
-
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:4000";
 
 export default function App() {
   const [bpm, setBpm] = useState(
@@ -26,6 +26,7 @@ export default function App() {
   const [isLive, setIsLive] = useState(false);
   const [isMaster, setIsMaster] = useState(true);
   const [roomId, setRoomId] = useState<string | null>(null);
+  const [syncReady, setSyncReady] = useState(false);
 
   const audioCtx = useRef<AudioContext | null>(null);
   const nextNoteTime = useRef(0);
@@ -33,10 +34,17 @@ export default function App() {
   const bpmRef = useRef(bpm);
   const offsetRef = useRef(offset);
   const beatsRef = useRef(beatsPerMeasure);
-  const socketRef = useRef<Socket | null>(null);
+  type SyncWs = ReturnType<ReturnType<typeof treaty<App>>["sync"]["subscribe"]>;
+  const wsRef = useRef<SyncWs | null>(null);
+  const syncReadyRef = useRef(false);
   const beatCounterRef = useRef(0);
 
-  // Refs 업데이트 (스케줄러 참조용)
+  const startMetronomeRef = useRef<() => void>(() => {});
+  const stopMetronomeRef = useRef<() => void>(() => {});
+  const applyRemoteControlRef = useRef<
+    (data: { bpm: number; beats: number; isPlaying: boolean }) => void
+  >(() => {});
+
   useEffect(() => {
     bpmRef.current = bpm;
     localStorage.setItem("ms-bpm", bpm.toString());
@@ -57,11 +65,9 @@ export default function App() {
     const osc = audioCtx.current.createOscillator();
     const gain = audioCtx.current.createGain();
 
-    // 주파수 설정 (첫 박은 높게, 나머지 박은 낮게)
     osc.frequency.value = isFirstBeat ? 1600 : 800;
     const duration = isFirstBeat ? 0.12 : 0.06;
 
-    // 💡 양수 오프셋만 적용: 예약된 시간에 offset(ms)을 초 단위로 더함
     const scheduledTime = time + offsetRef.current / 1000;
 
     gain.gain.setValueAtTime(1, scheduledTime);
@@ -78,7 +84,6 @@ export default function App() {
       return;
     }
 
-    // Look-ahead: 100ms 앞의 박자를 미리 예약
     while (nextNoteTime.current < audioCtx.current.currentTime + 0.1) {
       const isFirstBeat = beatCounterRef.current % beatsRef.current === 0;
       playSound(nextNoteTime.current, isFirstBeat);
@@ -94,16 +99,23 @@ export default function App() {
 
   const startMetronome = () => {
     if (!audioCtx.current) {
-      audioCtx.current = new (
-        window.AudioContext || (window as any).webkitAudioContext
-      )();
+      const AC =
+        window.AudioContext ??
+        (
+          window as typeof window & {
+            webkitAudioContext?: typeof AudioContext;
+          }
+        ).webkitAudioContext;
+      if (!AC) {
+        return;
+      }
+      audioCtx.current = new AC();
     }
     if (audioCtx.current.state === "suspended") {
       audioCtx.current.resume();
     }
 
     beatCounterRef.current = 0;
-    // 오프셋 적용을 위해 약간의 여유(50ms)를 두고 시작 시점 잡기
     nextNoteTime.current = audioCtx.current.currentTime + 0.05;
     setIsPlaying(true);
     scheduler();
@@ -117,45 +129,97 @@ export default function App() {
     setCurrentBeat(0);
   };
 
-  // Socket.io 통신 로직
   useEffect(() => {
-    socketRef.current = io(SERVER_URL);
-    socketRef.current.on("receive_control", (data) => {
+    startMetronomeRef.current = () => {
+      startMetronome();
+    };
+    stopMetronomeRef.current = () => {
+      stopMetronome();
+    };
+  });
+
+  useEffect(() => {
+    applyRemoteControlRef.current = (data) => {
       setIsMaster((prevMaster) => {
         if (!prevMaster) {
           setBpm(data.bpm);
           setDisplayBpm(data.bpm);
           setBeatsPerMeasure(data.beats);
           if (data.isPlaying) {
-            startMetronome();
+            startMetronomeRef.current();
           } else {
-            stopMetronome();
+            stopMetronomeRef.current();
           }
         }
         return prevMaster;
       });
+    };
+  });
+
+  useEffect(() => {
+    const api = treaty<App>(apiOrigin());
+    const client = api.sync.subscribe();
+
+    client.on("open", () => {
+      syncReadyRef.current = true;
+      setSyncReady(true);
     });
+
+    client.subscribe((event) => {
+      applyRemoteControlRef.current(event.data);
+    });
+
+    wsRef.current = client;
+
     return () => {
-      socketRef.current?.disconnect();
+      syncReadyRef.current = false;
+      setSyncReady(false);
+      client.close();
+      wsRef.current = null;
     };
   }, []);
 
-  useEffect(() => {
-    if (isLive && isMaster && roomId) {
-      socketRef.current?.emit("metronome_control", {
-        roomId,
-        bpm,
-        beats: beatsPerMeasure,
-        isPlaying,
-      });
+  const sendJoin = (code: string) => {
+    const c = wsRef.current;
+    if (!c) {
+      return;
     }
-  }, [bpm, beatsPerMeasure, isPlaying, isLive, isMaster, roomId]);
+    const sendJoinNow = () => {
+      c.send({ type: "join", roomId: code.toUpperCase() });
+    };
+    if (syncReadyRef.current) {
+      sendJoinNow();
+    } else {
+      c.on("open", sendJoinNow);
+    }
+  };
+
+  useEffect(() => {
+    if (!syncReady || !isLive || !isMaster || !roomId) {
+      return;
+    }
+    const c = wsRef.current;
+    if (!c) {
+      return;
+    }
+    c.send({
+      type: "control",
+      roomId,
+      bpm,
+      beats: beatsPerMeasure,
+      isPlaying,
+    });
+  }, [syncReady, bpm, beatsPerMeasure, isPlaying, isLive, isMaster, roomId]);
 
   const toggleMetronome = () => {
     if (isLive && !isMaster) {
       return;
     }
-    isPlaying ? stopMetronome() : startMetronome();
+    if (isPlaying) {
+      stopMetronome();
+    } else {
+      startMetronome();
+    }
   };
 
   return (
@@ -177,10 +241,11 @@ export default function App() {
                 onClick={() => {
                   const code = prompt("방 코드 입력:");
                   if (code) {
-                    setRoomId(code.toUpperCase());
+                    const upper = code.toUpperCase();
+                    setRoomId(upper);
                     setIsLive(true);
                     setIsMaster(false);
-                    socketRef.current?.emit("join_room", code.toUpperCase());
+                    sendJoin(upper);
                   }
                 }}
                 style={{ ...styles.shareBtn, backgroundColor: "#34495e" }}
@@ -196,8 +261,7 @@ export default function App() {
                   setRoomId(newId);
                   setIsLive(true);
                   setIsMaster(true);
-                  socketRef.current?.emit("join_room", newId);
-                  console.log(SERVER_URL);
+                  sendJoin(newId);
                 }}
                 style={styles.shareBtn}
               >
@@ -223,7 +287,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* 비주얼라이저 영역 */}
       <div style={styles.visualizer}>
         {Array.from({ length: beatsPerMeasure }).map((_, i) => (
           <div
@@ -248,7 +311,6 @@ export default function App() {
         ))}
       </div>
 
-      {/* 설정 카드들 */}
       <div style={styles.card}>
         <div
           style={{
@@ -354,7 +416,7 @@ export default function App() {
   );
 }
 
-const styles: { [key: string]: React.CSSProperties } = {
+const styles: { [key: string]: CSSProperties } = {
   container: {
     padding: "20px",
     maxWidth: "420px",
