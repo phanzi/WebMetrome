@@ -47,7 +47,7 @@ export function createMetronomeEngine(options: MetronomeEngineOptions) {
 
     osc.frequency.value = isFirstBeat ? 1600 : 800;
     const duration = isFirstBeat ? 0.12 : 0.06;
-      const scheduledTime = time + offsetMs / 1000;
+    const scheduledTime = time + offsetMs / 1000;
 
     gain.gain.setValueAtTime(1, scheduledTime);
     gain.gain.exponentialRampToValueAtTime(0.001, scheduledTime + duration);

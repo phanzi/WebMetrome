@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import { ALLOWED_BEATS, MAX_BPM, MIN_BPM } from "../domain/constants";
 import { clampBpm } from "../domain/guards";
 
@@ -44,38 +43,49 @@ export function MetronomeScreen(props: Props) {
     onCreateRoom,
     onExitRoom,
   } = props;
+  const pulseDurationClass =
+    bpm >= 180
+      ? "[animation-duration:0.35s]"
+      : bpm >= 120
+        ? "[animation-duration:0.5s]"
+        : "[animation-duration:0.75s]";
+  const cardClass =
+    "mb-3 rounded-[18px] bg-white p-[15px] shadow-[0_4px_12px_rgba(0,0,0,0.05)]";
+  const canControlClass = canControl
+    ? "cursor-pointer"
+    : "cursor-not-allowed opacity-60";
 
   return (
-    <div style={styles.container}>
-      <style>{`
-        @keyframes beatPulse {
-          0% { transform: scale(1.3); box-shadow: 0 0 20px rgba(76, 175, 80, 0.9); }
-          100% { transform: scale(1); box-shadow: none; }
-        }
-        .beat-animated { animation: beatPulse ${60 / bpm}s cubic-bezier(0, 0, 0.2, 1); }
-      `}</style>
-
-      <header style={styles.header}>
-        <h1 style={{ fontSize: "1.2rem", margin: 0 }}>Sync Metronome</h1>
-        <div style={{ display: "flex", gap: "8px" }}>
+    <div className="mx-auto min-h-screen w-full max-w-105 bg-slate-50 px-5 py-5 font-sans">
+      <header className="mb-5 flex items-center justify-between">
+        <h1 className="m-0 text-[1.2rem] font-bold text-slate-900">
+          Sync Metronome
+        </h1>
+        <div className="flex gap-2">
           {!isLive ? (
             <>
               <button
+                className="rounded-lg bg-slate-700 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-slate-800"
                 onClick={onJoinRoom}
-                style={{ ...styles.shareBtn, backgroundColor: "#34495e" }}
               >
                 JOIN
               </button>
-              <button onClick={onCreateRoom} style={styles.shareBtn}>
+              <button
+                className="rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-violet-700"
+                onClick={onCreateRoom}
+              >
                 SHARE
               </button>
             </>
           ) : (
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <div style={styles.liveBadge}>
+            <div className="flex items-center gap-2">
+              <div className="rounded-md bg-emerald-500 px-3 py-1.5 text-[0.75rem] font-bold text-white">
                 {isMaster ? "HOST" : "MEMBER"}: {roomId}
               </div>
-              <button onClick={onExitRoom} style={styles.exitBtn}>
+              <button
+                className="rounded-md bg-red-500 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600"
+                onClick={onExitRoom}
+              >
                 EXIT
               </button>
             </div>
@@ -83,42 +93,36 @@ export function MetronomeScreen(props: Props) {
         </div>
       </header>
 
-      <div style={styles.visualizer}>
+      <div className="mb-4 flex min-h-27.5 items-center justify-center gap-2 rounded-[25px] border border-slate-200 bg-slate-100">
         {Array.from({ length: beatsPerMeasure }).map((_, i) => (
           <div
-            className={isPlaying && currentBeat === i ? "beat-animated" : ""}
+            className={[
+              "flex items-center justify-center rounded-full font-bold text-white transition-all duration-100",
+              i === 0
+                ? "h-13.75 w-13.75 text-[1.2rem]"
+                : "h-9.5 w-9.5 text-[0.9rem]",
+              isPlaying && currentBeat === i
+                ? i === 0
+                  ? "scale-110 animate-pulse bg-orange-500 shadow-[0_0_20px_rgba(230,126,34,0.9)]"
+                  : "scale-110 animate-pulse bg-emerald-500 shadow-[0_0_20px_rgba(46,204,113,0.9)]"
+                : "bg-slate-700",
+              i === 0 ? "border-2 border-white" : "",
+              isPlaying && currentBeat === i ? pulseDurationClass : "",
+            ].join(" ")}
             key={i}
-            style={{
-              ...styles.beatCircle,
-              width: i === 0 ? "55px" : "38px",
-              height: i === 0 ? "55px" : "38px",
-              backgroundColor:
-                isPlaying && currentBeat === i
-                  ? i === 0
-                    ? "#e67e22"
-                    : "#2ecc71"
-                  : "#34495e",
-              border: i === 0 ? "2px solid #fff" : "none",
-              fontSize: i === 0 ? "1.2rem" : "0.9rem",
-            }}
           >
             {i + 1}
           </div>
         ))}
       </div>
 
-      <div style={styles.card}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <span style={styles.label}>
+      <div className={cardClass}>
+        <div className="flex items-center justify-between">
+          <span className="m-0 text-sm font-semibold text-slate-600">
             BPM: <b>{displayBpm}</b>
           </span>
           <input
+            className={`w-16.25 rounded-lg border border-slate-300 px-1.5 py-1.5 text-center font-bold text-slate-900 ${canControlClass}`}
             type="number"
             value={displayBpm}
             disabled={!canControl}
@@ -126,10 +130,10 @@ export function MetronomeScreen(props: Props) {
             onBlur={() => {
               onCommitBpm(clampBpm(displayBpm));
             }}
-            style={styles.numInput}
           />
         </div>
         <input
+          className={`mt-2.5 w-full accent-blue-500 ${canControlClass}`}
           type="range"
           min={MIN_BPM}
           max={MAX_BPM}
@@ -140,30 +144,26 @@ export function MetronomeScreen(props: Props) {
             const nextBpm = Number((e.target as HTMLInputElement).value);
             onCommitBpm(nextBpm);
           }}
-          style={{ width: "100%", marginTop: "10px" }}
         />
       </div>
 
-      <div style={styles.card}>
-        <p style={styles.label}>
+      <div className={cardClass}>
+        <p className="m-0 text-sm font-semibold text-slate-600">
           박자 (Beats): <b>{beatsPerMeasure}</b>
         </p>
-        <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+        <div className="mt-2.5 flex gap-2">
           {ALLOWED_BEATS.map((beats) => (
             <button
+              className={[
+                "flex-1 rounded-lg border px-0 py-2.5 font-bold transition",
+                beatsPerMeasure === beats
+                  ? "border-blue-500 bg-blue-500 text-white"
+                  : "border-slate-300 bg-white text-slate-700",
+                canControlClass,
+              ].join(" ")}
               key={beats}
               onClick={() => onBeatsChange(beats)}
               disabled={!canControl}
-              style={{
-                flex: 1,
-                padding: "10px 0",
-                borderRadius: "8px",
-                border: "1px solid #ddd",
-                backgroundColor: beatsPerMeasure === beats ? "#3498db" : "#fff",
-                color: beatsPerMeasure === beats ? "#fff" : "#333",
-                cursor: "pointer",
-                fontWeight: "bold",
-              }}
             >
               {beats}
             </button>
@@ -171,129 +171,36 @@ export function MetronomeScreen(props: Props) {
         </div>
       </div>
 
-      <div
-        style={{
-          ...styles.card,
-          backgroundColor: "#fffbe6",
-          border: "1px solid #ffe58f",
-        }}
-      >
-        <p style={styles.label}>
+      <div className={`${cardClass} border border-amber-200 bg-amber-50`}>
+        <p className="m-0 text-sm font-semibold text-slate-600">
           지연 보정 (Latency Offset): <b>{offset}ms</b>
         </p>
         <input
+          className={`mt-2.5 w-full accent-amber-500 ${canControlClass}`}
           type="range"
           min="0"
           max="500"
           value={offset}
           onChange={(e) => onOffsetChange(Number(e.target.value))}
-          style={{ width: "100%", marginTop: "10px" }}
         />
-        <p style={{ fontSize: "0.7rem", color: "#888", marginTop: "6px" }}>
+        <p className="mt-1.5 text-[0.7rem] text-slate-500">
           소리가 화면보다 늦게 들릴 때 값을 높여서 맞추세요.
         </p>
       </div>
 
       <button
+        className={[
+          "mt-2.5 w-full rounded-[40px] border-none px-5 py-5 text-[1.4rem] font-bold text-white transition",
+          isPlaying
+            ? "bg-red-500 hover:bg-red-600"
+            : "bg-blue-500 hover:bg-blue-600",
+          canControlClass,
+        ].join(" ")}
         onClick={onToggleMetronome}
         disabled={!canControl}
-        style={{
-          ...styles.mainBtn,
-          backgroundColor: isPlaying ? "#e74c3c" : "#3498db",
-          opacity: canControl ? 1 : 0.6,
-        }}
       >
         {isPlaying ? "STOP" : !canControl ? "WAITING..." : "START"}
       </button>
     </div>
   );
 }
-
-const styles: Record<string, CSSProperties> = {
-  container: {
-    padding: "20px",
-    maxWidth: "420px",
-    margin: "0 auto",
-    fontFamily: "system-ui, -apple-system, sans-serif",
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "20px",
-  },
-  shareBtn: {
-    padding: "8px 14px",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontSize: "0.8rem",
-    fontWeight: "bold",
-    backgroundColor: "#9b59b6",
-  },
-  exitBtn: {
-    padding: "6px 10px",
-    backgroundColor: "#e74c3c",
-    color: "#fff",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-  },
-  liveBadge: {
-    padding: "6px 12px",
-    backgroundColor: "#2ecc71",
-    color: "#fff",
-    borderRadius: "6px",
-    fontSize: "0.75rem",
-    fontWeight: "bold",
-  },
-  visualizer: {
-    display: "flex",
-    gap: "8px",
-    justifyContent: "center",
-    alignItems: "center",
-    minHeight: "110px",
-    background: "#f0f2f5",
-    borderRadius: "25px",
-    marginBottom: "15px",
-    border: "1px solid #e0e0e0",
-  },
-  beatCircle: {
-    borderRadius: "50%",
-    color: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: "bold",
-    transition: "background-color 0.1s",
-  },
-  card: {
-    background: "#fff",
-    padding: "15px",
-    borderRadius: "18px",
-    marginBottom: "12px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-  },
-  label: { fontSize: "0.9rem", color: "#555", margin: 0, fontWeight: "600" },
-  numInput: {
-    padding: "6px",
-    width: "65px",
-    borderRadius: "8px",
-    border: "1px solid #ddd",
-    textAlign: "center",
-    fontWeight: "bold",
-  },
-  mainBtn: {
-    width: "100%",
-    padding: "20px",
-    borderRadius: "40px",
-    border: "none",
-    color: "#fff",
-    fontSize: "1.4rem",
-    fontWeight: "bold",
-    cursor: "pointer",
-    marginTop: "10px",
-    transition: "all 0.2s",
-  },
-};
