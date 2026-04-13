@@ -1,5 +1,5 @@
 import { trim } from "es-toolkit/compat";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MetronomeScreen } from "./features/metronome/components/MetronomeScreen";
 import {
   DEFAULT_BEATS,
@@ -27,10 +27,21 @@ export default function App() {
       initialBpm,
       initialBeatsPerMeasure,
     });
-  const { bpm, beatsPerMeasure } = metronome;
+  const {
+    bpm,
+    beatsPerMeasure,
+    currentBeat,
+    isOwner,
+    roomId,
+    setBpm,
+    setBeatsPerMeasure,
+    toggle,
+    disconnect,
+  } = metronome;
 
   const [displayBpm, setDisplayBpm] = useState(() => bpm);
 
+  // Reset the BPM input when authoritative `bpm` changes (e.g. remote sync), without fighting local typing.
   useEffect(() => {
     setDisplayBpm(bpm);
   }, [bpm]);
@@ -43,17 +54,20 @@ export default function App() {
     localStorage.setItem(STORAGE_KEYS.beats, beatsPerMeasure.toString());
   }, [beatsPerMeasure]);
 
-  const canControlInServer = !isServer || metronome.isOwner;
+  const canControlInServer = !isServer || isOwner;
   const canToggleMetronome = canControlInServer;
   const canEditMetronomeSettings = canControlInServer && !isPlaying;
 
-  const handleCommitBpm = (value: number) => {
-    const nextBpm = clampBpm(value);
-    setDisplayBpm(nextBpm);
-    metronome.setBpm(nextBpm);
-  };
+  const handleCommitBpm = useCallback(
+    (value: number) => {
+      const nextBpm = clampBpm(value);
+      setDisplayBpm(nextBpm);
+      setBpm(nextBpm);
+    },
+    [setBpm],
+  );
 
-  const handleJoinRoom = () => {
+  const handleJoinRoom = useCallback(() => {
     const code = prompt("방 코드 입력:");
     if (!code) {
       return;
@@ -63,11 +77,28 @@ export default function App() {
       return;
     }
     connect(normalized);
-  };
+  }, [connect]);
 
-  const handleExitRoom = () => {
-    metronome.disconnect();
-  };
+  const handleExitRoom = useCallback(() => {
+    disconnect();
+  }, [disconnect]);
+
+  const handleBeatsChange = useCallback(
+    (value: number) => {
+      setBeatsPerMeasure(normalizeBeats(value));
+    },
+    [setBeatsPerMeasure],
+  );
+
+  const handleToggleMetronome = useCallback(() => {
+    if (canToggleMetronome) {
+      toggle();
+    }
+  }, [canToggleMetronome, toggle]);
+
+  const handleCreateRoom = useCallback(() => {
+    connect();
+  }, [connect]);
 
   return (
     <MetronomeScreen
@@ -75,27 +106,19 @@ export default function App() {
       displayBpm={displayBpm}
       beatsPerMeasure={beatsPerMeasure}
       isPlaying={isPlaying}
-      currentBeat={metronome.currentBeat}
+      currentBeat={currentBeat}
       canEditMetronomeSettings={canEditMetronomeSettings}
       canToggleMetronome={canToggleMetronome}
       isLive={isServer}
-      isMaster={metronome.isOwner}
+      isMaster={isOwner}
       isConnecting={isConnecting}
-      roomId={metronome.roomId}
+      roomId={roomId}
       onDisplayBpmChange={setDisplayBpm}
       onCommitBpm={handleCommitBpm}
-      onBeatsChange={(value) => {
-        metronome.setBeatsPerMeasure(normalizeBeats(value));
-      }}
-      onToggleMetronome={() => {
-        if (canToggleMetronome) {
-          metronome.toggle();
-        }
-      }}
+      onBeatsChange={handleBeatsChange}
+      onToggleMetronome={handleToggleMetronome}
       onJoinRoom={handleJoinRoom}
-      onCreateRoom={() => {
-        connect();
-      }}
+      onCreateRoom={handleCreateRoom}
       onExitRoom={handleExitRoom}
     />
   );
