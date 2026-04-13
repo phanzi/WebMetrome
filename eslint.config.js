@@ -8,6 +8,7 @@ import tseslint from "typescript-eslint";
 export default defineConfig([
   globalIgnores([
     ".agents/**",
+    "client/out/**",
     "dist",
     "out",
     "node_modules",
@@ -57,6 +58,26 @@ export default defineConfig([
     files: ["server/**/*.ts", "scripts/**/*.ts"],
     languageOptions: {
       globals: globals.node,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^[A-Z_]" },
+      ],
+      "no-unused-vars": "off",
+    },
+  },
+  {
+    files: ["tests/**/*.ts"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.jest,
+      },
       parserOptions: {
         ecmaVersion: "latest",
         sourceType: "module",

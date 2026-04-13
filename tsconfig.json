@@ -26,6 +26,7 @@
     "client/**/*.tsx",
     "server/**/*.ts",
     "server/**/*.tsx",
+    "tests/**/*.ts",
     "scripts/**/*.ts",
     "vite.config.ts",
     "vite-env.d.ts"
