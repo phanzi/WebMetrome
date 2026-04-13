@@ -1,4 +1,4 @@
-import { MIN_CONTROL_INTERVAL_MS } from "@server/domain/roomSync";
+import { MIN_CONTROL_INTERVAL_MS } from "@server/app";
 import { afterEach, describe, expect, it } from "bun:test";
 import { z } from "zod";
 import { startTestServer } from "../../fixtures/test-server";
@@ -126,6 +126,10 @@ describe("WebSocket join/control", () => {
       at: Date.now() + 60_000,
     });
     await waitForMessage(host, playScheduleSchema);
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, MIN_CONTROL_INTERVAL_MS + 5),
+    );
 
     sendJson(host, {
       type: "set-metronome",

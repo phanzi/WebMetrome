@@ -1,7 +1,5 @@
-import {
-  MIN_CONTROL_INTERVAL_MS,
-  createRoomSyncService,
-} from "@server/domain/roomSync";
+import { createRoomSyncService } from "@server/domain/roomSync";
+import { MIN_CONTROL_INTERVAL_MS } from "@server/shared/controlRateLimit";
 import { describe, expect, it, mock } from "bun:test";
 
 describe("createRoomSyncService room state", () => {

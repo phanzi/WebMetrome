@@ -1,4 +1,4 @@
-import { createApp, type CreateAppOptions } from "@server/app";
+import { createApp } from "@server/app";
 import { createServer } from "node:net";
 import { z } from "zod";
 
@@ -24,9 +24,11 @@ const getFreePort = async (): Promise<number> =>
     server.on("error", reject);
   });
 
-export const startTestServer = async (options?: CreateAppOptions) => {
+export const startTestServer = async (
+  ...args: Parameters<typeof createApp>
+) => {
   const port = await getFreePort();
-  const app = createApp(options);
+  const app = createApp(args[0]);
   app.listen(port);
 
   return {

@@ -1,9 +1,6 @@
 import { Elysia, t } from "elysia";
 import { createRoomSyncService } from "./domain/roomSync";
-
-export type CreateAppOptions = {
-  now?: () => number;
-};
+import { createRateLimiter } from "./shared/controlRateLimit";
 
 const toErrorMessage = (
   code: "INVALID_ROOM" | "UNAUTHORIZED" | "INVALID_PAYLOAD" | "RATE_LIMIT",
@@ -20,67 +17,80 @@ const toErrorMessage = (
   return "메시지 형식이 올바르지 않습니다.";
 };
 
-export function createApp(options?: CreateAppOptions) {
-  const roomSync = createRoomSyncService({ now: options?.now });
-  return new Elysia().ws("/room", {
-    body: t.Union([
-      t.Object({
-        type: t.Literal("set-metronome"),
-        metronome: t.Object({
-          bpm: t.Number(),
-          beats: t.Number(),
-        }),
-      }),
-      t.Object({
-        type: t.Literal("play-schedule"),
-        at: t.Number(),
-      }),
-      t.Object({
-        type: t.Literal("play-halt"),
-      }),
-    ]),
-    query: t.Object({
-      id: t.Optional(t.String()),
+const querySchema = t.Object({
+  id: t.Optional(t.String()),
+});
+
+const bodySchema = t.Union([
+  t.Object({
+    type: t.Literal("set-metronome"),
+    metronome: t.Object({
+      bpm: t.Number(),
+      beats: t.Number(),
     }),
-    response: t.Union([
-      t.Object({
-        type: t.Literal("room-created"),
-        role: t.Literal("owner"),
-        roomId: t.String(),
-      }),
-      t.Object({
-        type: t.Literal("room-joined"),
-        role: t.Union([t.Literal("owner"), t.Literal("member")]),
-        roomId: t.String(),
-      }),
-      t.Object({
-        type: t.Literal("metronome-state"),
-        roomId: t.String(),
-        metronome: t.Object({
-          bpm: t.Number(),
-          beats: t.Number(),
-        }),
-      }),
-      t.Object({
-        type: t.Literal("play-schedule"),
-        roomId: t.String(),
-        at: t.Number(),
-      }),
-      t.Object({
-        type: t.Literal("play-halt"),
-        roomId: t.String(),
-      }),
-      t.Object({
-        type: t.Literal("error"),
-        code: t.Union([
-          t.Literal("INVALID_ROOM"),
-          t.Literal("UNAUTHORIZED"),
-          t.Literal("INVALID_PAYLOAD"),
-          t.Literal("RATE_LIMIT"),
-        ]),
-        message: t.String(),
-      }),
+  }),
+  t.Object({
+    type: t.Literal("play-schedule"),
+    at: t.Number(),
+  }),
+  t.Object({
+    type: t.Literal("play-halt"),
+  }),
+]);
+
+const responseSchema = t.Union([
+  t.Object({
+    type: t.Literal("room-created"),
+    role: t.Literal("owner"),
+    roomId: t.String(),
+  }),
+  t.Object({
+    type: t.Literal("room-joined"),
+    role: t.Union([t.Literal("owner"), t.Literal("member")]),
+    roomId: t.String(),
+  }),
+  t.Object({
+    type: t.Literal("metronome-state"),
+    roomId: t.String(),
+    metronome: t.Object({
+      bpm: t.Number(),
+      beats: t.Number(),
+    }),
+  }),
+  t.Object({
+    type: t.Literal("play-schedule"),
+    roomId: t.String(),
+    at: t.Number(),
+  }),
+  t.Object({
+    type: t.Literal("play-halt"),
+    roomId: t.String(),
+  }),
+  t.Object({
+    type: t.Literal("error"),
+    code: t.Union([
+      t.Literal("INVALID_ROOM"),
+      t.Literal("UNAUTHORIZED"),
+      t.Literal("INVALID_PAYLOAD"),
+      t.Literal("RATE_LIMIT"),
     ]),
+    message: t.String(),
+  }),
+]);
+
+export type ResponseSchema = typeof responseSchema.static;
+
+export function createApp(options?: { now?: () => number }) {
+  const getNow = options?.now ?? Date.now;
+  const rateLimiter = createRateLimiter({ now: getNow });
+  const roomSync = createRoomSyncService({
+    now: options?.now,
+  });
+
+  return new Elysia().ws("/room", {
+    query: querySchema,
+    body: bodySchema,
+    response: responseSchema,
     open(ws) {
       roomSync.open(ws.id, (data) => {
         ws.send(data);
@@ -134,48 +144,58 @@ export function createApp(options?: CreateAppOptions) {
       }
     },
     message(ws, message) {
-      if (message.type === "set-metronome") {
-        const updated = roomSync.replaceMetronomeState(
-          ws.id,
-          message.metronome,
-        );
-        if (updated.ok) {
-          return;
-        }
+      if (!rateLimiter.allow(ws.id)) {
         ws.send({
           type: "error",
-          code: updated.code,
-          message: toErrorMessage(updated.code),
+          code: "RATE_LIMIT",
+          message: toErrorMessage("RATE_LIMIT"),
         });
         return;
       }
 
-      if (message.type === "play-schedule") {
-        const updated = roomSync.relayPlaySchedule(ws.id, {
-          at: message.at,
-        });
-        if (updated.ok) {
+      switch (message.type) {
+        case "set-metronome": {
+          const updated = roomSync.replaceMetronomeState(
+            ws.id,
+            message.metronome,
+          );
+          if (!updated.ok) {
+            ws.send({
+              type: "error",
+              code: updated.code,
+              message: toErrorMessage(updated.code),
+            });
+          }
           return;
         }
-        ws.send({
-          type: "error",
-          code: updated.code,
-          message: toErrorMessage(updated.code),
-        });
-        return;
+        case "play-schedule": {
+          const updated = roomSync.relayPlaySchedule(ws.id, {
+            at: message.at,
+          });
+          if (!updated.ok) {
+            ws.send({
+              type: "error",
+              code: updated.code,
+              message: toErrorMessage(updated.code),
+            });
+          }
+          return;
+        }
+        case "play-halt": {
+          const updated = roomSync.relayPlayHalt(ws.id);
+          if (!updated.ok) {
+            ws.send({
+              type: "error",
+              code: updated.code,
+              message: toErrorMessage(updated.code),
+            });
+          }
+          return;
+        }
       }
-
-      const updated = roomSync.relayPlayHalt(ws.id);
-      if (updated.ok) {
-        return;
-      }
-      ws.send({
-        type: "error",
-        code: updated.code,
-        message: toErrorMessage(updated.code),
-      });
     },
     close(ws) {
+      rateLimiter.clear(ws.id);
       roomSync.close(ws.id);
       console.log(`연결 종료: ${ws.id}`);
     },

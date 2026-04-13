@@ -28,6 +28,12 @@ const rateLimitErrorSchema = z.object({
   message: z.literal("요청이 너무 빠릅니다."),
 });
 
+const playScheduleSchema = z.object({
+  type: z.literal("play-schedule"),
+  roomId: z.string(),
+  at: z.number(),
+});
+
 describe("WebSocket rate limit", () => {
   const sockets: WebSocket[] = [];
   let stopServer = () => {};
@@ -61,6 +67,60 @@ describe("WebSocket rate limit", () => {
     sendJson(host, {
       type: "set-metronome",
       metronome: { bpm: 121, beats: 4 },
+    });
+
+    const errorMessage = await waitForMessage(host, rateLimitErrorSchema);
+    expect(errorMessage.code).toBe("RATE_LIMIT");
+  });
+
+  it("returns RATE_LIMIT when play-schedule follows set-metronome at same server time", async () => {
+    const fixedNow = 200_000;
+    const { port, stop } = await startTestServer({
+      now: () => fixedNow,
+    });
+    stopServer = stop;
+
+    const host = await connectWebSocket(`ws://localhost:${port}/room`);
+    sockets.push(host);
+
+    await waitForMessage(host, roomCreatedSchema);
+
+    sendJson(host, {
+      type: "set-metronome",
+      metronome: { bpm: 120, beats: 4 },
+    });
+    await waitForMessage(host, metronomeStateSchema);
+
+    sendJson(host, {
+      type: "play-schedule",
+      at: fixedNow + 60_000,
+    });
+
+    const errorMessage = await waitForMessage(host, rateLimitErrorSchema);
+    expect(errorMessage.code).toBe("RATE_LIMIT");
+  });
+
+  it("returns RATE_LIMIT when set-metronome follows play-schedule at same server time", async () => {
+    const fixedNow = 300_000;
+    const { port, stop } = await startTestServer({
+      now: () => fixedNow,
+    });
+    stopServer = stop;
+
+    const host = await connectWebSocket(`ws://localhost:${port}/room`);
+    sockets.push(host);
+
+    await waitForMessage(host, roomCreatedSchema);
+
+    sendJson(host, {
+      type: "play-schedule",
+      at: fixedNow + 60_000,
+    });
+    await waitForMessage(host, playScheduleSchema);
+
+    sendJson(host, {
+      type: "set-metronome",
+      metronome: { bpm: 150, beats: 4 },
     });
 
     const errorMessage = await waitForMessage(host, rateLimitErrorSchema);

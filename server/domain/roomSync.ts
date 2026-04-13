@@ -1,11 +1,10 @@
+import type { ResponseSchema } from "@server/app";
 import { z } from "zod";
-import { createControlRateLimiter } from "./controlRateLimit";
 
 export const ROOM_ID_PATTERN = /^[A-Z0-9]{4,12}$/;
 export const MIN_BPM = 20;
 export const MAX_BPM = 300;
 export const ALLOWED_BEATS = new Set([2, 3, 4, 6, 8]);
-export { MIN_CONTROL_INTERVAL_MS } from "./controlRateLimit";
 
 export type MetronomeState = {
   bpm: number;
@@ -14,41 +13,10 @@ export type MetronomeState = {
 
 export type ClientRole = "owner" | "member";
 
-export type ServerMessage =
-  | {
-      type: "room-created";
-      roomId: string;
-      role: "owner";
-    }
-  | {
-      type: "room-joined";
-      roomId: string;
-      role: ClientRole;
-    }
-  | {
-      type: "metronome-state";
-      roomId: string;
-      metronome: MetronomeState;
-    }
-  | {
-      type: "play-schedule";
-      roomId: string;
-      at: number;
-    }
-  | {
-      type: "play-halt";
-      roomId: string;
-    }
-  | {
-      type: "error";
-      code: "INVALID_ROOM" | "UNAUTHORIZED" | "INVALID_PAYLOAD" | "RATE_LIMIT";
-      message: string;
-    };
-
-type PlayScheduleMessage = Extract<ServerMessage, { type: "play-schedule" }>;
+type PlayScheduleMessage = Extract<ResponseSchema, { type: "play-schedule" }>;
 
 type Member = {
-  send: (data: ServerMessage) => void;
+  send: (data: ResponseSchema) => void;
 };
 
 type CreateRoomSyncServiceOptions = {
@@ -112,7 +80,6 @@ export function createRoomSyncService(
   options: CreateRoomSyncServiceOptions = {},
 ) {
   const getNow = options.now ?? Date.now;
-  const controlRateLimiter = createControlRateLimiter({ now: getNow });
   const rooms = new Map<string, Room>();
   const connectionRoom = new Map<string, string | null>();
 
@@ -149,7 +116,7 @@ export function createRoomSyncService(
   const canOwnerControl = (room: Room, connectionId: string): boolean =>
     room.ownerConnectionId === connectionId;
 
-  const broadcast = (roomId: string, message: ServerMessage) => {
+  const broadcast = (roomId: string, message: ResponseSchema) => {
     const room = rooms.get(roomId);
     if (!room) {
       return;
@@ -170,7 +137,7 @@ export function createRoomSyncService(
   };
 
   return {
-    open(connectionId: string, send: (data: ServerMessage) => void) {
+    open(connectionId: string, send: (data: ResponseSchema) => void) {
       members.set(connectionId, { send });
       connectionRoom.set(connectionId, null);
     },
@@ -247,19 +214,11 @@ export function createRoomSyncService(
       | { ok: true; roomId: string; metronomeState: MetronomeState }
       | {
           ok: false;
-          code:
-            | "INVALID_ROOM"
-            | "UNAUTHORIZED"
-            | "INVALID_PAYLOAD"
-            | "RATE_LIMIT";
+          code: "INVALID_ROOM" | "UNAUTHORIZED" | "INVALID_PAYLOAD";
         } {
       const roomId = connectionRoom.get(connectionId) ?? null;
       if (!roomId) {
         return { ok: false, code: "INVALID_ROOM" };
-      }
-
-      if (!controlRateLimiter.allow(connectionId, "metronome")) {
-        return { ok: false, code: "RATE_LIMIT" };
       }
 
       const room = rooms.get(roomId);
@@ -296,19 +255,11 @@ export function createRoomSyncService(
       | { ok: true; roomId: string; at: number }
       | {
           ok: false;
-          code:
-            | "INVALID_ROOM"
-            | "UNAUTHORIZED"
-            | "INVALID_PAYLOAD"
-            | "RATE_LIMIT";
+          code: "INVALID_ROOM" | "UNAUTHORIZED" | "INVALID_PAYLOAD";
         } {
       const roomId = connectionRoom.get(connectionId) ?? null;
       if (!roomId) {
         return { ok: false, code: "INVALID_ROOM" };
-      }
-
-      if (!controlRateLimiter.allow(connectionId, "playing")) {
-        return { ok: false, code: "RATE_LIMIT" };
       }
 
       const room = rooms.get(roomId);
@@ -344,15 +295,11 @@ export function createRoomSyncService(
       | { ok: true; roomId: string }
       | {
           ok: false;
-          code: "INVALID_ROOM" | "UNAUTHORIZED" | "RATE_LIMIT";
+          code: "INVALID_ROOM" | "UNAUTHORIZED";
         } {
       const roomId = connectionRoom.get(connectionId) ?? null;
       if (!roomId) {
         return { ok: false, code: "INVALID_ROOM" };
-      }
-
-      if (!controlRateLimiter.allow(connectionId, "playing")) {
-        return { ok: false, code: "RATE_LIMIT" };
       }
 
       const room = rooms.get(roomId);
@@ -377,7 +324,6 @@ export function createRoomSyncService(
       const roomId = connectionRoom.get(connectionId) ?? null;
       removeFromRoom(roomId, connectionId);
       connectionRoom.delete(connectionId);
-      controlRateLimiter.clear(connectionId);
       members.delete(connectionId);
     },
 

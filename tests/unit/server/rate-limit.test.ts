@@ -1,12 +1,9 @@
-import {
-  MIN_CONTROL_INTERVAL_MS,
-  createRoomSyncService,
-} from "@server/domain/roomSync";
+import { createRoomSyncService } from "@server/domain/roomSync";
 import { describe, expect, it, mock } from "bun:test";
 
-describe("createRoomSyncService (room + rate limiter wiring)", () => {
-  it("drops too frequent metronome updates", () => {
-    let now = 1000;
+describe("createRoomSyncService (domain has no transport rate limit)", () => {
+  it("allows rapid metronome updates in domain layer", () => {
+    const now = 1000;
     const service = createRoomSyncService({
       now: () => now,
     });
@@ -26,27 +23,12 @@ describe("createRoomSyncService (room + rate limiter wiring)", () => {
       beats: 4,
     });
     expect(first.ok).toBe(true);
-    expect(sender).toHaveBeenCalledTimes(1);
-    expect(peerSender).toHaveBeenCalledTimes(1);
 
-    now += MIN_CONTROL_INTERVAL_MS - 1;
-    const dropped = service.replaceMetronomeState("host", {
+    const second = service.replaceMetronomeState("host", {
       bpm: 121,
       beats: 4,
     });
-    expect(dropped.ok).toBe(false);
-    if (!dropped.ok) {
-      expect(dropped.code).toBe("RATE_LIMIT");
-    }
-    expect(sender).toHaveBeenCalledTimes(1);
-    expect(peerSender).toHaveBeenCalledTimes(1);
-
-    now += 1;
-    const accepted = service.replaceMetronomeState("host", {
-      bpm: 122,
-      beats: 4,
-    });
-    expect(accepted.ok).toBe(true);
+    expect(second.ok).toBe(true);
     expect(sender).toHaveBeenCalledTimes(2);
     expect(peerSender).toHaveBeenCalledTimes(2);
   });
