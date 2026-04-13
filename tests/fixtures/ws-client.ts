@@ -1,8 +1,18 @@
 import type { ZodType } from "zod";
 
+type QueuedWebSocket = WebSocket & {
+  __queuedMessages?: string[];
+};
+
 export const connectWebSocket = (url: string): Promise<WebSocket> =>
   new Promise((resolve, reject) => {
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(url) as QueuedWebSocket;
+    ws.__queuedMessages = [];
+
+    ws.addEventListener("message", (event) => {
+      ws.__queuedMessages?.push(String(event.data));
+    });
+
     ws.addEventListener("open", () => {
       resolve(ws);
     });
@@ -21,6 +31,23 @@ export const waitForMessage = <T>(
   timeoutMs = 1000,
 ): Promise<T> =>
   new Promise((resolve, reject) => {
+    const queuedWs = ws as QueuedWebSocket;
+    const queued = queuedWs.__queuedMessages ?? [];
+    for (let index = 0; index < queued.length; index += 1) {
+      const data = queued[index];
+      if (!data) {
+        continue;
+      }
+      try {
+        const parsed = schema.parse(JSON.parse(data));
+        queued.splice(index, 1);
+        resolve(parsed);
+        return;
+      } catch {
+        // ignore unmatched queued payloads and continue waiting
+      }
+    }
+
     const timeoutId = setTimeout(() => {
       reject(new Error("Timed out while waiting websocket message"));
     }, timeoutMs);
@@ -28,6 +55,7 @@ export const waitForMessage = <T>(
     const handler = (event: MessageEvent) => {
       clearTimeout(timeoutId);
       ws.removeEventListener("message", handler);
+      queuedWs.__queuedMessages?.shift();
       try {
         const rawData = JSON.parse(String(event.data));
         resolve(schema.parse(rawData));

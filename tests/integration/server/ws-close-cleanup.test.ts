@@ -8,9 +8,27 @@ import {
   waitForMessage,
 } from "../../fixtures/ws-client";
 
-const controlMessageSchema = z.object({
-  bpm: z.number(),
-  isPlaying: z.boolean(),
+const roomCreatedSchema = z.object({
+  type: z.literal("room-created"),
+  roomId: z.string(),
+});
+
+const roomJoinedSchema = z.object({
+  type: z.literal("room-joined"),
+  roomId: z.string(),
+});
+
+const metronomeStateSchema = z.object({
+  type: z.literal("metronome-state"),
+  metronome: z.object({
+    bpm: z.number(),
+    beats: z.number(),
+  }),
+});
+
+const errorSchema = z.object({
+  type: z.literal("error"),
+  code: z.string(),
 });
 
 describe("WebSocket close cleanup", () => {
@@ -29,37 +47,64 @@ describe("WebSocket close cleanup", () => {
     const { port, stop } = await startTestServer();
     stopServer = stop;
 
-    const host = await connectWebSocket(`ws://localhost:${port}/sync`);
-    const member = await connectWebSocket(`ws://localhost:${port}/sync`);
-    const replacementMember = await connectWebSocket(
-      `ws://localhost:${port}/sync`,
-    );
-    sockets.push(host, member, replacementMember);
+    const host = await connectWebSocket(`ws://localhost:${port}/room`);
+    sockets.push(host);
+    const created = await waitForMessage(host, roomCreatedSchema);
 
-    sendJson(host, { type: "join", roomId: "AB12" });
-    sendJson(member, { type: "join", roomId: "AB12" });
-    await Bun.sleep(20);
+    const member = await connectWebSocket(
+      `ws://localhost:${port}/room?id=${created.roomId}`,
+    );
+    sockets.push(member);
+    await waitForMessage(member, roomJoinedSchema);
+    await waitForMessage(member, metronomeStateSchema);
+    await waitForMessage(
+      member,
+      z.object({
+        type: z.literal("playing-state"),
+      }),
+    );
 
     member.close();
     await Bun.sleep(20);
 
-    sendJson(replacementMember, { type: "join", roomId: "AB12" });
-    await Bun.sleep(20);
-
     sendJson(host, {
-      type: "control",
-      roomId: "AB12",
-      bpm: 100,
-      beats: 4,
-      isPlaying: false,
+      type: "set-metronome",
+      metronome: {
+        bpm: 100,
+        beats: 4,
+      },
     });
+    await waitForMessage(host, metronomeStateSchema);
+
+    const replacementMember = await connectWebSocket(
+      `ws://localhost:${port}/room?id=${created.roomId}`,
+    );
+    sockets.push(replacementMember);
+    await waitForMessage(replacementMember, roomJoinedSchema);
 
     const message = await waitForMessage(
       replacementMember,
-      controlMessageSchema,
+      metronomeStateSchema,
     );
-    expect(message.bpm).toBe(100);
-    expect(message.isPlaying).toBe(false);
-    await expectNoMessage(host);
+    expect(message.metronome.bpm).toBe(100);
+  });
+
+  it("removes room when owner disconnects", async () => {
+    const { port, stop } = await startTestServer();
+    stopServer = stop;
+
+    const host = await connectWebSocket(`ws://localhost:${port}/room`);
+    sockets.push(host);
+    const created = await waitForMessage(host, roomCreatedSchema);
+    host.close();
+    await Bun.sleep(20);
+
+    const member = await connectWebSocket(
+      `ws://localhost:${port}/room?id=${created.roomId}`,
+    );
+    sockets.push(member);
+    const error = await waitForMessage(member, errorSchema);
+    expect(error.code).toBe("INVALID_ROOM");
+    await expectNoMessage(member);
   });
 });

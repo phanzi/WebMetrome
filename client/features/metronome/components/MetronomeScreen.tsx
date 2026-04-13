@@ -4,17 +4,17 @@ import { clampBpm } from "../domain/guards";
 type Props = {
   bpm: number;
   displayBpm: number;
-  offset: number;
   beatsPerMeasure: number;
   isPlaying: boolean;
   currentBeat: number;
-  canControl: boolean;
+  canEditMetronomeSettings: boolean;
+  canToggleMetronome: boolean;
   isLive: boolean;
   isMaster: boolean;
+  isConnecting: boolean;
   roomId: string | null;
   onDisplayBpmChange: (value: number) => void;
   onCommitBpm: (value: number) => void;
-  onOffsetChange: (value: number) => void;
   onBeatsChange: (value: number) => void;
   onToggleMetronome: () => void;
   onJoinRoom: () => void;
@@ -26,17 +26,17 @@ export function MetronomeScreen(props: Props) {
   const {
     bpm,
     displayBpm,
-    offset,
     beatsPerMeasure,
     isPlaying,
     currentBeat,
-    canControl,
+    canEditMetronomeSettings,
+    canToggleMetronome,
     isLive,
     isMaster,
+    isConnecting,
     roomId,
     onDisplayBpmChange,
     onCommitBpm,
-    onOffsetChange,
     onBeatsChange,
     onToggleMetronome,
     onJoinRoom,
@@ -51,7 +51,10 @@ export function MetronomeScreen(props: Props) {
         : "[animation-duration:0.75s]";
   const cardClass =
     "mb-3 rounded-[18px] bg-white p-[15px] shadow-[0_4px_12px_rgba(0,0,0,0.05)]";
-  const canControlClass = canControl
+  const canEditClass = canEditMetronomeSettings
+    ? "cursor-pointer"
+    : "cursor-not-allowed opacity-60";
+  const canToggleClass = canToggleMetronome
     ? "cursor-pointer"
     : "cursor-not-allowed opacity-60";
 
@@ -65,14 +68,16 @@ export function MetronomeScreen(props: Props) {
           {!isLive ? (
             <>
               <button
-                className="rounded-lg bg-slate-700 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-slate-800"
+                className="rounded-lg bg-slate-700 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={onJoinRoom}
+                disabled={isConnecting}
               >
-                JOIN
+                {isConnecting ? "CONNECTING..." : "JOIN"}
               </button>
               <button
-                className="rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-violet-700"
+                className="rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={onCreateRoom}
+                disabled={isConnecting}
               >
                 SHARE
               </button>
@@ -122,10 +127,10 @@ export function MetronomeScreen(props: Props) {
             BPM: <b>{displayBpm}</b>
           </span>
           <input
-            className={`w-16.25 rounded-lg border border-slate-300 px-1.5 py-1.5 text-center font-bold text-slate-900 ${canControlClass}`}
+            className={`w-16.25 rounded-lg border border-slate-300 px-1.5 py-1.5 text-center font-bold text-slate-900 ${canEditClass}`}
             type="number"
             value={displayBpm}
-            disabled={!canControl}
+            disabled={!canEditMetronomeSettings}
             onChange={(e) => onDisplayBpmChange(Number(e.target.value))}
             onBlur={() => {
               onCommitBpm(clampBpm(displayBpm));
@@ -133,12 +138,12 @@ export function MetronomeScreen(props: Props) {
           />
         </div>
         <input
-          className={`mt-2.5 w-full accent-blue-500 ${canControlClass}`}
+          className={`mt-2.5 w-full accent-blue-500 ${canEditClass}`}
           type="range"
           min={MIN_BPM}
           max={MAX_BPM}
           value={displayBpm}
-          disabled={!canControl}
+          disabled={!canEditMetronomeSettings}
           onChange={(e) => onDisplayBpmChange(Number(e.target.value))}
           onMouseUp={(e) => {
             const nextBpm = Number((e.target as HTMLInputElement).value);
@@ -159,33 +164,16 @@ export function MetronomeScreen(props: Props) {
                 beatsPerMeasure === beats
                   ? "border-blue-500 bg-blue-500 text-white"
                   : "border-slate-300 bg-white text-slate-700",
-                canControlClass,
+                canEditClass,
               ].join(" ")}
               key={beats}
               onClick={() => onBeatsChange(beats)}
-              disabled={!canControl}
+              disabled={!canEditMetronomeSettings}
             >
               {beats}
             </button>
           ))}
         </div>
-      </div>
-
-      <div className={`${cardClass} border border-amber-200 bg-amber-50`}>
-        <p className="m-0 text-sm font-semibold text-slate-600">
-          지연 보정 (Latency Offset): <b>{offset}ms</b>
-        </p>
-        <input
-          className={`mt-2.5 w-full accent-amber-500 ${canControlClass}`}
-          type="range"
-          min="0"
-          max="500"
-          value={offset}
-          onChange={(e) => onOffsetChange(Number(e.target.value))}
-        />
-        <p className="mt-1.5 text-[0.7rem] text-slate-500">
-          소리가 화면보다 늦게 들릴 때 값을 높여서 맞추세요.
-        </p>
       </div>
 
       <button
@@ -194,12 +182,12 @@ export function MetronomeScreen(props: Props) {
           isPlaying
             ? "bg-red-500 hover:bg-red-600"
             : "bg-blue-500 hover:bg-blue-600",
-          canControlClass,
+          canToggleClass,
         ].join(" ")}
         onClick={onToggleMetronome}
-        disabled={!canControl}
+        disabled={!canToggleMetronome}
       >
-        {isPlaying ? "STOP" : !canControl ? "WAITING..." : "START"}
+        {isPlaying ? "STOP" : !canToggleMetronome ? "WAITING..." : "START"}
       </button>
     </div>
   );

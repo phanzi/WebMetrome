@@ -1,8 +1,8 @@
-import { describe, expect, it, mock } from "bun:test";
 import {
   MIN_CONTROL_INTERVAL_MS,
   createRoomSyncService,
-} from "../../../server/domain/roomSync";
+} from "@server/domain/roomSync";
+import { describe, expect, it, mock } from "bun:test";
 
 describe("createRoomSyncService rate limit", () => {
   it("drops too frequent control messages", () => {
@@ -11,40 +11,43 @@ describe("createRoomSyncService rate limit", () => {
       now: () => now,
     });
     const sender = mock(() => {});
+    const peerSender = mock(() => {});
 
-    service.open("host");
-    service.open("member");
-    service.join(
-      "host",
-      "ROOM1",
-      mock(() => {}),
-    );
-    service.join("member", "ROOM1", sender);
+    service.open("host", sender);
+    service.open("member", peerSender);
+    const created = service.createRoom("host");
+    if (!created.ok) {
+      throw new Error("expected room to be created");
+    }
+    service.joinRoom("member", created.roomId);
 
-    const first = service.control("host", {
+    const first = service.replaceMetronomeState("host", {
       bpm: 120,
       beats: 4,
-      isPlaying: true,
     });
-    expect(first).not.toBeNull();
+    expect(first.ok).toBe(true);
     expect(sender).toHaveBeenCalledTimes(1);
+    expect(peerSender).toHaveBeenCalledTimes(1);
 
     now += MIN_CONTROL_INTERVAL_MS - 1;
-    const dropped = service.control("host", {
+    const dropped = service.replaceMetronomeState("host", {
       bpm: 121,
       beats: 4,
-      isPlaying: true,
     });
-    expect(dropped).toBeNull();
+    expect(dropped.ok).toBe(false);
+    if (!dropped.ok) {
+      expect(dropped.code).toBe("RATE_LIMIT");
+    }
     expect(sender).toHaveBeenCalledTimes(1);
+    expect(peerSender).toHaveBeenCalledTimes(1);
 
     now += 1;
-    const accepted = service.control("host", {
+    const accepted = service.replaceMetronomeState("host", {
       bpm: 122,
       beats: 4,
-      isPlaying: false,
     });
-    expect(accepted).not.toBeNull();
+    expect(accepted.ok).toBe(true);
     expect(sender).toHaveBeenCalledTimes(2);
+    expect(peerSender).toHaveBeenCalledTimes(2);
   });
 });

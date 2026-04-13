@@ -1,58 +1,64 @@
+import {
+  isValidMetronomeState,
+  isValidPlayingState,
+} from "@server/domain/roomSync";
 import { describe, expect, it } from "bun:test";
-import { isValidControlPayload } from "../../../server/domain/roomSync";
 
-describe("isValidControlPayload", () => {
-  it("accepts valid payload", () => {
+describe("payload validation", () => {
+  it("accepts valid metronome state", () => {
     expect(
-      isValidControlPayload({
+      isValidMetronomeState({
         bpm: 120,
         beats: 4,
-        isPlaying: true,
       }),
     ).toBe(true);
   });
 
-  it("rejects bpm outside allowed range", () => {
+  it("rejects metronome bpm outside allowed range", () => {
     expect(
-      isValidControlPayload({
+      isValidMetronomeState({
         bpm: 19,
         beats: 4,
-        isPlaying: true,
       }),
     ).toBe(false);
     expect(
-      isValidControlPayload({
+      isValidMetronomeState({
         bpm: 301,
         beats: 4,
-        isPlaying: true,
       }),
     ).toBe(false);
   });
 
   it("rejects beats not in allowed set", () => {
     expect(
-      isValidControlPayload({
+      isValidMetronomeState({
         bpm: 120,
         beats: 5,
-        isPlaying: true,
       }),
     ).toBe(false);
   });
 
   it("rejects non-integer values", () => {
     expect(
-      isValidControlPayload({
+      isValidMetronomeState({
         bpm: 120.5,
         beats: 4,
-        isPlaying: true,
       }),
     ).toBe(false);
     expect(
-      isValidControlPayload({
+      isValidMetronomeState({
         bpm: 120,
         beats: 3.2,
-        isPlaying: true,
       }),
     ).toBe(false);
+  });
+
+  it("accepts valid playing state", () => {
+    expect(
+      isValidPlayingState({
+        updatedAt: Date.now(),
+        isPlaying: true,
+      }),
+    ).toBe(true);
   });
 });

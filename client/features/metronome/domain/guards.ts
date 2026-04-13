@@ -1,22 +1,10 @@
 import { z } from "zod";
-import {
-  DEFAULT_BEATS,
-  DEFAULT_BPM,
-  DEFAULT_OFFSET_MS,
-  MAX_BPM,
-  MAX_OFFSET_MS,
-  MIN_BPM,
-  MIN_OFFSET_MS,
-} from "./constants";
+import { DEFAULT_BEATS, DEFAULT_BPM, MAX_BPM, MIN_BPM } from "./constants";
 
 const finiteNumberSchema = z.number();
 
 const clampBpmSchema = finiteNumberSchema.transform((value) =>
   Math.max(MIN_BPM, Math.min(MAX_BPM, Math.round(value))),
-);
-
-const offsetSchema = finiteNumberSchema.transform((value) =>
-  Math.max(MIN_OFFSET_MS, Math.min(MAX_OFFSET_MS, Math.round(value))),
 );
 
 const allowedBeatsSchema = z.union([
@@ -34,9 +22,6 @@ const storedNumberSchema = z
 
 export const clampBpm = (value: number): number => clampBpmSchema.parse(value);
 
-export const normalizeOffset = (value: number): number =>
-  offsetSchema.parse(value);
-
 export const normalizeBeats = (value: number): number =>
   allowedBeatsSchema.safeParse(value).success ? value : DEFAULT_BEATS;
 
@@ -53,8 +38,3 @@ export const readStoredNumber = (
 
 export const sanitizeInitialBpm = (value: number): number =>
   finiteNumberSchema.safeParse(value).success ? clampBpm(value) : DEFAULT_BPM;
-
-export const sanitizeInitialOffset = (value: number): number =>
-  finiteNumberSchema.safeParse(value).success
-    ? normalizeOffset(value)
-    : DEFAULT_OFFSET_MS;

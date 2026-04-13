@@ -1,7 +1,6 @@
 type MetronomeEngineOptions = {
   bpm: number;
   beatsPerMeasure: number;
-  offsetMs: number;
   onBeat: (beatIndex: number) => void;
 };
 
@@ -9,7 +8,6 @@ export function createMetronomeEngine(options: MetronomeEngineOptions) {
   const { onBeat } = options;
   let bpm = options.bpm;
   let beatsPerMeasure = options.beatsPerMeasure;
-  let offsetMs = options.offsetMs;
 
   let audioContext: AudioContext | null = null;
   let timerId: number | null = null;
@@ -47,15 +45,13 @@ export function createMetronomeEngine(options: MetronomeEngineOptions) {
 
     osc.frequency.value = isFirstBeat ? 1600 : 800;
     const duration = isFirstBeat ? 0.12 : 0.06;
-    const scheduledTime = time + offsetMs / 1000;
-
-    gain.gain.setValueAtTime(1, scheduledTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, scheduledTime + duration);
+    gain.gain.setValueAtTime(1, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
 
     osc.connect(gain);
     gain.connect(audioContext.destination);
-    osc.start(scheduledTime);
-    osc.stop(scheduledTime + duration);
+    osc.start(time);
+    osc.stop(time + duration);
   };
 
   const scheduler = () => {
@@ -111,9 +107,6 @@ export function createMetronomeEngine(options: MetronomeEngineOptions) {
     },
     setBeatsPerMeasure(nextBeatsPerMeasure: number) {
       beatsPerMeasure = nextBeatsPerMeasure;
-    },
-    setOffsetMs(nextOffsetMs: number) {
-      offsetMs = nextOffsetMs;
     },
   };
 }
