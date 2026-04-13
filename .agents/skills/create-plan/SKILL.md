@@ -15,9 +15,13 @@ plan을 작성할 때 **작업이 모두 끝난 뒤** 반드시 검증 단계를
 
 ## 검증 규칙
 
+1. 다음의 커맨드를 실행
+
 ```sh
 bun run format && bun run lint && bun run test && bun run build
 ```
+
+2. typescript reviewer를 실행
 
 - 빌드 실행 후 타입에러나 빌드에러가 발생하면 다음과 같이 처리:
   1. 에러가 쉽게 수정 가능한 경우 바로 수정
