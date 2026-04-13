@@ -1,3 +1,4 @@
+import { MIN_CONTROL_INTERVAL_MS } from "@server/domain/roomSync";
 import { afterEach, describe, expect, it } from "bun:test";
 import { z } from "zod";
 import { startTestServer } from "../../fixtures/test-server";
@@ -33,6 +34,11 @@ const playScheduleSchema = z.object({
   type: z.literal("play-schedule"),
   roomId: z.string(),
   at: z.number(),
+});
+
+const playHaltSchema = z.object({
+  type: z.literal("play-halt"),
+  roomId: z.string(),
 });
 
 const errorSchema = z.object({
@@ -127,5 +133,82 @@ describe("WebSocket join/control", () => {
     });
     const updated = await waitForMessage(host, metronomeStateSchema);
     expect(updated.metronome).toEqual({ bpm: 150, beats: 4 });
+  });
+
+  it("replays play-schedule after room-joined and metronome-state for late join", async () => {
+    const { port, stop } = await startTestServer();
+    stopServer = stop;
+
+    const host = await connectWebSocket(`ws://localhost:${port}/room`);
+    sockets.push(host);
+    const created = await waitForMessage(host, roomCreatedSchema);
+
+    const at = Date.now() + 60_000;
+    sendJson(host, {
+      type: "play-schedule",
+      at,
+    });
+    const hostScheduled = await waitForMessage(host, playScheduleSchema);
+    expect(hostScheduled.roomId).toBe(created.roomId);
+    expect(hostScheduled.at).toBe(at);
+
+    const lateMember = await connectWebSocket(
+      `ws://localhost:${port}/room?id=${created.roomId}`,
+    );
+    sockets.push(lateMember);
+
+    const joined = await waitForMessage(lateMember, roomJoinedSchema);
+    expect(joined.roomId).toBe(created.roomId);
+
+    const metronomeState = await waitForMessage(
+      lateMember,
+      metronomeStateSchema,
+    );
+    expect(metronomeState.roomId).toBe(created.roomId);
+
+    const replayedSchedule = await waitForMessage(
+      lateMember,
+      playScheduleSchema,
+    );
+    expect(replayedSchedule.roomId).toBe(created.roomId);
+    expect(replayedSchedule.at).toBe(at);
+  });
+
+  it("does not replay play-schedule for late join after play-halt", async () => {
+    const { port, stop } = await startTestServer();
+    stopServer = stop;
+
+    const host = await connectWebSocket(`ws://localhost:${port}/room`);
+    sockets.push(host);
+    const created = await waitForMessage(host, roomCreatedSchema);
+
+    sendJson(host, {
+      type: "play-schedule",
+      at: Date.now() + 60_000,
+    });
+    await waitForMessage(host, playScheduleSchema);
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, MIN_CONTROL_INTERVAL_MS + 5),
+    );
+    sendJson(host, { type: "play-halt" });
+    const halted = await waitForMessage(host, playHaltSchema);
+    expect(halted.roomId).toBe(created.roomId);
+
+    const lateMember = await connectWebSocket(
+      `ws://localhost:${port}/room?id=${created.roomId}`,
+    );
+    sockets.push(lateMember);
+
+    const joined = await waitForMessage(lateMember, roomJoinedSchema);
+    expect(joined.roomId).toBe(created.roomId);
+
+    const metronomeState = await waitForMessage(
+      lateMember,
+      metronomeStateSchema,
+    );
+    expect(metronomeState.roomId).toBe(created.roomId);
+
+    await expectNoMessage(lateMember, MIN_CONTROL_INTERVAL_MS + 120);
   });
 });
