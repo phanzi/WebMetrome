@@ -18,8 +18,6 @@ const clientMessage = t.Union([
   }),
 ]);
 
-const serverMessage = t.Any();
-
 const toErrorMessage = (
   code:
     | "INVALID_ROOM"
@@ -58,11 +56,10 @@ const resolveRoomIdFromConnection = (ws: {
   return parsed;
 };
 
-function createSyncWsPlugin() {
+export function createApp() {
   const roomSync = createRoomSyncService();
   return new Elysia().ws("/room", {
     body: clientMessage,
-    response: serverMessage,
     open(ws) {
       roomSync.open(ws.id, (data) => {
         ws.send(data);
@@ -149,12 +146,6 @@ function createSyncWsPlugin() {
       console.log(`연결 종료: ${ws.id}`);
     },
   });
-}
-
-export function createApp() {
-  return new Elysia()
-    .get("/health", () => ({ ok: true as const }))
-    .use(createSyncWsPlugin());
 }
 
 export const app = createApp();
