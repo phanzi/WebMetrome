@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { noop } from "es-toolkit/compat";
 import { z } from "zod";
 import { startTestServer } from "../../fixtures/test-server";
 import {
@@ -36,7 +37,7 @@ const playScheduleSchema = z.object({
 
 describe("WebSocket rate limit", () => {
   const sockets: WebSocket[] = [];
-  let stopServer = () => {};
+  let stopServer = noop;
 
   afterEach(() => {
     for (const socket of sockets) {

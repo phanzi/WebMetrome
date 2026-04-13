@@ -1,7 +1,4 @@
-import {
-  createRateLimiter,
-  MIN_CONTROL_INTERVAL_MS,
-} from "@server/shared/controlRateLimit";
+import { createRateLimiter, MIN_CONTROL_INTERVAL_MS } from "@server/app";
 import { describe, expect, it } from "bun:test";
 
 describe("createControlRateLimiter", () => {

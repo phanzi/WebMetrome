@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { delay } from "es-toolkit";
+import { noop } from "es-toolkit/compat";
 import { z } from "zod";
 import { startTestServer } from "../../fixtures/test-server";
 import {
@@ -33,7 +35,7 @@ const errorSchema = z.object({
 
 describe("WebSocket close cleanup", () => {
   const sockets: WebSocket[] = [];
-  let stopServer = () => {};
+  let stopServer = noop;
 
   afterEach(() => {
     for (const socket of sockets) {
@@ -59,7 +61,7 @@ describe("WebSocket close cleanup", () => {
     await waitForMessage(member, metronomeStateSchema);
 
     member.close();
-    await Bun.sleep(20);
+    await delay(20);
 
     sendJson(host, {
       type: "set-metronome",
@@ -91,7 +93,7 @@ describe("WebSocket close cleanup", () => {
     sockets.push(host);
     const created = await waitForMessage(host, roomCreatedSchema);
     host.close();
-    await Bun.sleep(20);
+    await delay(20);
 
     const member = await connectWebSocket(
       `ws://localhost:${port}/room?id=${created.roomId}`,

@@ -1,5 +1,9 @@
+import { MIN_CONTROL_INTERVAL_MS } from "@server/app";
+import {
+  PLAY_SCHEDULE_FUTURE_LIMIT_MS,
+  PLAY_SCHEDULE_PAST_TOLERANCE_MS,
+} from "@server/domain/constants";
 import { createRoomSyncService } from "@server/domain/roomSync";
-import { MIN_CONTROL_INTERVAL_MS } from "@server/shared/controlRateLimit";
 import { describe, expect, it, mock } from "bun:test";
 
 describe("createRoomSyncService room state", () => {
@@ -121,6 +125,40 @@ describe("createRoomSyncService room state", () => {
     expect(joinedAfterHalt.ok).toBe(true);
     if (joinedAfterHalt.ok) {
       expect(joinedAfterHalt.replayPlaySchedule).toBeNull();
+    }
+  });
+
+  it("accepts play-schedule boundaries and rejects outside window", () => {
+    const nowMs = 50_000;
+    const service = createRoomSyncService({ now: () => nowMs });
+    const sender = mock(() => {});
+    service.open("host", sender);
+    const created = service.createRoom("host");
+    if (!created.ok) {
+      throw new Error("expected room to be created");
+    }
+
+    const lowerBoundary = nowMs - PLAY_SCHEDULE_PAST_TOLERANCE_MS;
+    const upperBoundary = nowMs + PLAY_SCHEDULE_FUTURE_LIMIT_MS;
+    expect(service.relayPlaySchedule("host", { at: lowerBoundary }).ok).toBe(
+      true,
+    );
+    expect(service.relayPlaySchedule("host", { at: upperBoundary }).ok).toBe(
+      true,
+    );
+    const beforeLower = service.relayPlaySchedule("host", {
+      at: lowerBoundary - 1,
+    });
+    expect(beforeLower.ok).toBe(false);
+    if (!beforeLower.ok) {
+      expect(beforeLower.code).toBe("INVALID_PAYLOAD");
+    }
+    const afterUpper = service.relayPlaySchedule("host", {
+      at: upperBoundary + 1,
+    });
+    expect(afterUpper.ok).toBe(false);
+    if (!afterUpper.ok) {
+      expect(afterUpper.code).toBe("INVALID_PAYLOAD");
     }
   });
 

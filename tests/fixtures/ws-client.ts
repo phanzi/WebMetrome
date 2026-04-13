@@ -1,3 +1,5 @@
+import { delay } from "es-toolkit";
+import { pullAt } from "es-toolkit/compat";
 import type { ZodType } from "zod";
 
 type QueuedWebSocket = WebSocket & {
@@ -40,7 +42,7 @@ export const waitForMessage = <T>(
       }
       try {
         const parsed = schema.parse(JSON.parse(data));
-        queued.splice(index, 1);
+        pullAt(queued, [index]);
         resolve(parsed);
         return;
       } catch {
@@ -55,7 +57,9 @@ export const waitForMessage = <T>(
     const handler = (event: MessageEvent) => {
       clearTimeout(timeoutId);
       ws.removeEventListener("message", handler);
-      queuedWs.__queuedMessages?.shift();
+      if (queuedWs.__queuedMessages) {
+        pullAt(queuedWs.__queuedMessages, [0]);
+      }
       try {
         const rawData = JSON.parse(String(event.data));
         resolve(schema.parse(rawData));
@@ -78,8 +82,8 @@ export const expectNoMessage = (
     };
 
     ws.addEventListener("message", handler);
-    setTimeout(() => {
+    delay(timeoutMs).then(() => {
       ws.removeEventListener("message", handler);
       resolve();
-    }, timeoutMs);
+    });
   });

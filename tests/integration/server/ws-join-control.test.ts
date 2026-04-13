@@ -1,5 +1,7 @@
 import { MIN_CONTROL_INTERVAL_MS } from "@server/app";
 import { afterEach, describe, expect, it } from "bun:test";
+import { delay } from "es-toolkit";
+import { noop } from "es-toolkit/compat";
 import { z } from "zod";
 import { startTestServer } from "../../fixtures/test-server";
 import {
@@ -48,7 +50,7 @@ const errorSchema = z.object({
 
 describe("WebSocket join/control", () => {
   const sockets: WebSocket[] = [];
-  let stopServer = () => {};
+  let stopServer = noop;
 
   afterEach(() => {
     for (const socket of sockets) {
@@ -127,9 +129,7 @@ describe("WebSocket join/control", () => {
     });
     await waitForMessage(host, playScheduleSchema);
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, MIN_CONTROL_INTERVAL_MS + 5),
-    );
+    await delay(MIN_CONTROL_INTERVAL_MS + 5);
 
     sendJson(host, {
       type: "set-metronome",
@@ -192,9 +192,7 @@ describe("WebSocket join/control", () => {
     });
     await waitForMessage(host, playScheduleSchema);
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, MIN_CONTROL_INTERVAL_MS + 5),
-    );
+    await delay(MIN_CONTROL_INTERVAL_MS + 5);
     sendJson(host, { type: "play-halt" });
     const halted = await waitForMessage(host, playHaltSchema);
     expect(halted.roomId).toBe(created.roomId);
