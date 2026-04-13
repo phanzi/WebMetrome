@@ -1,5 +1,12 @@
-import { compact, range } from "es-toolkit";
-import { ALLOWED_BEATS, MAX_BPM, MIN_BPM } from "../domain/constants";
+import { memo } from "react";
+import { BeatIndicators } from "./BeatIndicators";
+import { BeatsPanel } from "./BeatsPanel";
+import { BpmPanel } from "./BpmPanel";
+import { RoomHeader } from "./RoomHeader";
+import { TransportButton } from "./TransportButton";
+
+const METRONOME_CARD_CLASS =
+  "mb-3 rounded-[18px] bg-white p-[15px] shadow-[0_4px_12px_rgba(0,0,0,0.05)]";
 
 type Props = {
   bpm: number;
@@ -22,7 +29,7 @@ type Props = {
   onExitRoom: () => void;
 };
 
-export function MetronomeScreen(props: Props) {
+function MetronomeScreenComponent(props: Props) {
   const {
     bpm,
     displayBpm,
@@ -43,14 +50,7 @@ export function MetronomeScreen(props: Props) {
     onCreateRoom,
     onExitRoom,
   } = props;
-  const pulseDurationClass =
-    bpm >= 180
-      ? "[animation-duration:0.35s]"
-      : bpm >= 120
-        ? "[animation-duration:0.5s]"
-        : "[animation-duration:0.75s]";
-  const cardClass =
-    "mb-3 rounded-[18px] bg-white p-[15px] shadow-[0_4px_12px_rgba(0,0,0,0.05)]";
+
   const canEditClass = canEditMetronomeSettings
     ? "cursor-pointer"
     : "cursor-not-allowed opacity-60";
@@ -60,133 +60,54 @@ export function MetronomeScreen(props: Props) {
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-105 bg-slate-50 px-5 py-5 font-sans">
-      <header className="mb-5 flex items-center justify-between">
-        <h1 className="m-0 text-[1.2rem] font-bold text-slate-900">
-          Sync Metronome
-        </h1>
-        <div className="flex gap-2">
-          {!isLive ? (
-            <>
-              <button
-                className="rounded-lg bg-slate-700 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={onJoinRoom}
-                disabled={isConnecting}
-              >
-                {isConnecting ? "CONNECTING..." : "JOIN"}
-              </button>
-              <button
-                className="rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={onCreateRoom}
-                disabled={isConnecting}
-              >
-                SHARE
-              </button>
-            </>
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className="rounded-md bg-emerald-500 px-3 py-1.5 text-[0.75rem] font-bold text-white">
-                {isMaster ? "HOST" : "MEMBER"}: {roomId}
-              </div>
-              <button
-                className="rounded-md bg-red-500 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600"
-                onClick={onExitRoom}
-              >
-                EXIT
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+      <RoomHeader
+        {...(isLive
+          ? {
+              kind: "live" as const,
+              roomId: roomId ?? "",
+              isMaster,
+              onExitRoom,
+            }
+          : {
+              kind: "offline" as const,
+              isConnecting,
+              onJoinRoom,
+              onCreateRoom,
+            })}
+      />
 
-      <div className="mb-4 flex min-h-27.5 items-center justify-center gap-2 rounded-[25px] border border-slate-200 bg-slate-100">
-        {range(0, beatsPerMeasure).map((i) => (
-          <div
-            className={compact([
-              "flex items-center justify-center rounded-full font-bold text-white transition-all duration-100",
-              i === 0
-                ? "h-13.75 w-13.75 text-[1.2rem]"
-                : "h-9.5 w-9.5 text-[0.9rem]",
-              isPlaying && currentBeat === i
-                ? i === 0
-                  ? "scale-110 animate-pulse bg-orange-500 shadow-[0_0_20px_rgba(230,126,34,0.9)]"
-                  : "scale-110 animate-pulse bg-emerald-500 shadow-[0_0_20px_rgba(46,204,113,0.9)]"
-                : "bg-slate-700",
-              i === 0 ? "border-2 border-white" : undefined,
-              isPlaying && currentBeat === i ? pulseDurationClass : undefined,
-            ]).join(" ")}
-            key={i}
-          >
-            {i + 1}
-          </div>
-        ))}
-      </div>
+      <BeatIndicators
+        beatsPerMeasure={beatsPerMeasure}
+        currentBeat={currentBeat}
+        isPlaying={isPlaying}
+        bpm={bpm}
+      />
 
-      <div className={cardClass}>
-        <div className="flex items-center justify-between">
-          <span className="m-0 text-sm font-semibold text-slate-600">
-            BPM: <b>{displayBpm}</b>
-          </span>
-          <input
-            className={`w-16.25 rounded-lg border border-slate-300 px-1.5 py-1.5 text-center font-bold text-slate-900 ${canEditClass}`}
-            type="number"
-            value={displayBpm}
-            disabled={!canEditMetronomeSettings}
-            onChange={(e) => onDisplayBpmChange(Number(e.target.value))}
-            onBlur={() => onCommitBpm(displayBpm)}
-          />
-        </div>
-        <input
-          className={`mt-2.5 w-full accent-blue-500 ${canEditClass}`}
-          type="range"
-          min={MIN_BPM}
-          max={MAX_BPM}
-          value={displayBpm}
-          disabled={!canEditMetronomeSettings}
-          onChange={(e) => onDisplayBpmChange(Number(e.target.value))}
-          onMouseUp={(e) => {
-            const nextBpm = Number((e.target as HTMLInputElement).value);
-            onCommitBpm(nextBpm);
-          }}
-        />
-      </div>
+      <BpmPanel
+        className={METRONOME_CARD_CLASS}
+        displayBpm={displayBpm}
+        canEditMetronomeSettings={canEditMetronomeSettings}
+        canEditClass={canEditClass}
+        onDisplayBpmChange={onDisplayBpmChange}
+        onCommitBpm={onCommitBpm}
+      />
 
-      <div className={cardClass}>
-        <p className="m-0 text-sm font-semibold text-slate-600">
-          박자 (Beats): <b>{beatsPerMeasure}</b>
-        </p>
-        <div className="mt-2.5 flex gap-2">
-          {ALLOWED_BEATS.map((beats) => (
-            <button
-              className={compact([
-                "flex-1 rounded-lg border px-0 py-2.5 font-bold transition",
-                beatsPerMeasure === beats
-                  ? "border-blue-500 bg-blue-500 text-white"
-                  : "border-slate-300 bg-white text-slate-700",
-                canEditClass,
-              ]).join(" ")}
-              key={beats}
-              onClick={() => onBeatsChange(beats)}
-              disabled={!canEditMetronomeSettings}
-            >
-              {beats}
-            </button>
-          ))}
-        </div>
-      </div>
+      <BeatsPanel
+        className={METRONOME_CARD_CLASS}
+        beatsPerMeasure={beatsPerMeasure}
+        canEditMetronomeSettings={canEditMetronomeSettings}
+        canEditClass={canEditClass}
+        onBeatsChange={onBeatsChange}
+      />
 
-      <button
-        className={compact([
-          "mt-2.5 w-full rounded-[40px] border-none px-5 py-5 text-[1.4rem] font-bold text-white transition",
-          isPlaying
-            ? "bg-red-500 hover:bg-red-600"
-            : "bg-blue-500 hover:bg-blue-600",
-          canToggleClass,
-        ]).join(" ")}
-        onClick={onToggleMetronome}
-        disabled={!canToggleMetronome}
-      >
-        {isPlaying ? "STOP" : !canToggleMetronome ? "WAITING..." : "START"}
-      </button>
+      <TransportButton
+        isPlaying={isPlaying}
+        canToggleMetronome={canToggleMetronome}
+        canToggleClass={canToggleClass}
+        onToggleMetronome={onToggleMetronome}
+      />
     </div>
   );
 }
+
+export const MetronomeScreen = memo(MetronomeScreenComponent);
