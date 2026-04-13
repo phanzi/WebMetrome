@@ -1,13 +1,10 @@
 import { treaty } from "@elysiajs/eden/treaty2";
-import type { App } from "@server/app";
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
+import type { App } from "../server/app";
 
 function apiOrigin(): string {
-  if (typeof window !== "undefined") {
-    return window.location.origin;
-  }
-  return "http://localhost:4000";
+  return window?.location?.origin ?? "http://localhost:4000";
 }
 
 export default function App() {
