@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react";
 import { join } from "node:path";
 import { defineConfig } from "vite";
 
-// https://vite.dev/config/
 export default defineConfig({
   root: "client",
   envDir: ".",
@@ -12,6 +11,12 @@ export default defineConfig({
   server: {
     port: 3000,
     strictPort: true,
+    hmr: {
+      protocol: "ws",
+      host: "localhost",
+      port: 3000,
+      clientPort: 3000,
+    },
   },
   build: {
     outDir: join("out", "dist"),
