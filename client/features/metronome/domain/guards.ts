@@ -9,7 +9,7 @@ import {
   MIN_OFFSET_MS,
 } from "./constants";
 
-const finiteNumberSchema = z.number().finite();
+const finiteNumberSchema = z.number();
 
 const clampBpmSchema = finiteNumberSchema.transform((value) =>
   Math.max(MIN_BPM, Math.min(MAX_BPM, Math.round(value))),
@@ -30,7 +30,7 @@ const allowedBeatsSchema = z.union([
 const storedNumberSchema = z
   .string()
   .transform((value) => Number(value))
-  .pipe(z.number().finite());
+  .pipe(z.number());
 
 export const clampBpm = (value: number): number => clampBpmSchema.parse(value);
 

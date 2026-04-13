@@ -7,7 +7,7 @@ import { createApp } from "./app";
 const portSchema = z
   .string()
   .transform((value) => Number.parseInt(value, 10))
-  .pipe(z.number().finite().int().positive());
+  .pipe(z.number().int().positive());
 
 export const resolvePort = (portCandidate: string | undefined): number => {
   const parsed = portSchema.safeParse(portCandidate ?? "");

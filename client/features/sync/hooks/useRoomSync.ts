@@ -30,10 +30,10 @@ const roomCodeSchema = z
 const controlPayloadSchema = z.object({
   type: z.literal("control"),
   roomId: roomCodeSchema,
-  bpm: z.number().finite().int().min(MIN_BPM).max(MAX_BPM),
+  bpm: z.number().int().min(MIN_BPM).max(MAX_BPM),
   beats: z
     .number()
-    .finite()
+
     .int()
     .refine((value) =>
       ALLOWED_BEATS.includes(value as (typeof ALLOWED_BEATS)[number]),

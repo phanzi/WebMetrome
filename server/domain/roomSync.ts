@@ -27,10 +27,9 @@ export type RoomSyncService = ReturnType<typeof createRoomSyncService>;
 const roomIdSchema = z.string().trim().toUpperCase().regex(ROOM_ID_PATTERN);
 
 const controlPayloadSchema = z.object({
-  bpm: z.number().finite().int().min(MIN_BPM).max(MAX_BPM),
+  bpm: z.number().int().min(MIN_BPM).max(MAX_BPM),
   beats: z
     .number()
-    .finite()
     .int()
     .refine((value) => ALLOWED_BEATS.has(value)),
   isPlaying: z.boolean(),

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createApp } from "../../server/app";
 
 const serverAddressSchema = z.object({
-  port: z.number().finite().int().positive(),
+  port: z.number().int().positive(),
 });
 
 const getFreePort = async (): Promise<number> =>
