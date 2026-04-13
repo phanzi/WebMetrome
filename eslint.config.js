@@ -6,7 +6,13 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores(["dist", "out", "node_modules", "src/backend/dist"]),
+  globalIgnores([
+    ".agents/**",
+    "dist",
+    "out",
+    "node_modules",
+    "server/dist",
+  ]),
   ...tseslint.configs.recommended,
   {
     files: ["**/*.{js,jsx}"],
@@ -29,8 +35,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["src/**/*.{ts,tsx}"],
-    ignores: ["src/backend/**"],
+    files: ["client/**/*.{ts,tsx}"],
     extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
     languageOptions: {
       globals: globals.browser,
@@ -49,7 +54,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["src/backend/**/*.ts", "scripts/**/*.ts"],
+    files: ["server/**/*.ts", "scripts/**/*.ts"],
     languageOptions: {
       globals: globals.node,
       parserOptions: {

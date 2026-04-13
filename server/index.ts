@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { app } from "./app";
 
 const isDev = process.env.APP_ENV === "development";
-const PORT = 4000;
+const envPort = Number.parseInt(process.env.PORT ?? "", 10);
+const PORT = Number.isFinite(envPort) && envPort > 0 ? envPort : 4000;
 
 const server = new Elysia().use(app);
 
