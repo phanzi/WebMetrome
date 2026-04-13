@@ -81,7 +81,13 @@ const playingStateSchema = z.object({
 
 const errorSchema = z.object({
   type: z.literal("error"),
-  code: z.string(),
+  code: z.enum([
+    "INVALID_ROOM",
+    "UNAUTHORIZED",
+    "INVALID_PAYLOAD",
+    "PLAYING_LOCKED",
+    "RATE_LIMIT",
+  ]),
   message: z.string(),
 });
 
@@ -251,7 +257,9 @@ export function useMetronome(params: UseMetronomeParams) {
         return;
       }
 
-      applyPlayingState(parsed.playing.isPlaying);
+      if (parsed.type === "playing-state") {
+        applyPlayingState(parsed.playing.isPlaying);
+      }
     });
 
     ws.addEventListener("close", () => {
