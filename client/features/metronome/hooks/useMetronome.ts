@@ -1,126 +1,27 @@
+import { treaty } from "@elysiajs/eden";
+import type { App } from "@server/app";
 import { useEffect, useRef, useState } from "react";
-import { z } from "zod";
 import { createMetronomeEngine } from "../audio/createMetronomeEngine";
-import { ALLOWED_BEATS, MAX_BPM, MIN_BPM } from "../domain/constants";
 import { clampBpm, normalizeBeats } from "../domain/guards";
+import { computeAlignedStart } from "../domain/playSchedule";
 
 type UseMetronomeParams = {
   initialBpm: number;
   initialBeatsPerMeasure: number;
 };
 
-type ConnectRoomEvent = {
-  type: "room-created" | "room-joined";
-  roomId: string;
-  role: "owner" | "member";
-};
+const SCHEDULE_LEAD_MS = 1000;
 
-type MetronomeStateEvent = {
-  type: "metronome-state";
-  roomId: string;
-  metronome: {
-    bpm: number;
-    beats: number;
-  };
-};
+const getServerOrigin = (): string =>
+  window?.location?.origin ?? "http://localhost:4000";
 
-type PlayingStateEvent = {
-  type: "playing-state";
-  roomId: string;
-  playing: {
-    updatedAt: number;
-    isPlaying: boolean;
-  };
-};
+const createRoomSubscription = (targetRoomId?: string) =>
+  treaty<App>(getServerOrigin()).room.subscribe({
+    query: targetRoomId ? { id: targetRoomId } : {},
+  });
 
-type ErrorEvent = {
-  type: "error";
-  code:
-    | "INVALID_ROOM"
-    | "UNAUTHORIZED"
-    | "INVALID_PAYLOAD"
-    | "PLAYING_LOCKED"
-    | "RATE_LIMIT";
-  message: string;
-};
-
-type ServerEvent =
-  | ConnectRoomEvent
-  | MetronomeStateEvent
-  | PlayingStateEvent
-  | ErrorEvent;
-
-const connectRoomSchema = z.object({
-  type: z.union([z.literal("room-created"), z.literal("room-joined")]),
-  roomId: z.string(),
-  role: z.union([z.literal("owner"), z.literal("member")]),
-});
-
-const metronomeStateSchema = z.object({
-  type: z.literal("metronome-state"),
-  roomId: z.string(),
-  metronome: z.object({
-    bpm: z.number().int().min(MIN_BPM).max(MAX_BPM),
-    beats: z
-      .number()
-      .int()
-      .refine((value) =>
-        ALLOWED_BEATS.includes(value as (typeof ALLOWED_BEATS)[number]),
-      ),
-  }),
-});
-
-const playingStateSchema = z.object({
-  type: z.literal("playing-state"),
-  roomId: z.string(),
-  playing: z.object({
-    updatedAt: z.number().int().nonnegative(),
-    isPlaying: z.boolean(),
-  }),
-});
-
-const errorSchema = z.object({
-  type: z.literal("error"),
-  code: z.enum([
-    "INVALID_ROOM",
-    "UNAUTHORIZED",
-    "INVALID_PAYLOAD",
-    "PLAYING_LOCKED",
-    "RATE_LIMIT",
-  ]),
-  message: z.string(),
-});
-
-const asWsOrigin = (origin: string): string =>
-  origin.startsWith("https://")
-    ? origin.replace("https://", "wss://")
-    : origin.replace("http://", "ws://");
-
-const parseServerEvent = (raw: string): ServerEvent | null => {
-  let data: unknown;
-  try {
-    data = JSON.parse(raw) as unknown;
-  } catch {
-    return null;
-  }
-  const parsedConnect = connectRoomSchema.safeParse(data);
-  if (parsedConnect.success) {
-    return parsedConnect.data;
-  }
-  const parsedMetronome = metronomeStateSchema.safeParse(data);
-  if (parsedMetronome.success) {
-    return parsedMetronome.data;
-  }
-  const parsedPlaying = playingStateSchema.safeParse(data);
-  if (parsedPlaying.success) {
-    return parsedPlaying.data;
-  }
-  const parsedError = errorSchema.safeParse(data);
-  if (parsedError.success) {
-    return parsedError.data;
-  }
-  return null;
-};
+type RoomSubscription = ReturnType<typeof createRoomSubscription>;
+type RoomClientMessage = Parameters<RoomSubscription["send"]>[0];
 
 export function useMetronome(params: UseMetronomeParams) {
   const [metronomeState, setMetronomeState] = useState(() => ({
@@ -134,11 +35,12 @@ export function useMetronome(params: UseMetronomeParams) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentBeat, setCurrentBeat] = useState(0);
 
-  const wsRef = useRef<WebSocket | null>(null);
+  const wsRef = useRef<RoomSubscription | null>(null);
   const isServerRef = useRef(false);
   const isOwnerRef = useRef(false);
   const isPlayingRef = useRef(false);
   const metronomeStateRef = useRef(metronomeState);
+  const roomIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     isServerRef.current = isServer;
@@ -155,6 +57,10 @@ export function useMetronome(params: UseMetronomeParams) {
   useEffect(() => {
     metronomeStateRef.current = metronomeState;
   }, [metronomeState]);
+
+  useEffect(() => {
+    roomIdRef.current = roomId;
+  }, [roomId]);
 
   const [engine] = useState(() =>
     createMetronomeEngine({
@@ -181,7 +87,7 @@ export function useMetronome(params: UseMetronomeParams) {
     };
   }, [engine]);
 
-  const applyPlayingState = (nextIsPlaying: boolean) => {
+  const applyLocalPlaying = (nextIsPlaying: boolean) => {
     if (nextIsPlaying) {
       if (engine.start()) {
         setIsPlaying(true);
@@ -192,12 +98,47 @@ export function useMetronome(params: UseMetronomeParams) {
     setIsPlaying(false);
   };
 
-  const sendWs = (payload: unknown) => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
+  const applyPlayHalt = (eventRoomId?: string) => {
+    if (eventRoomId && roomIdRef.current !== eventRoomId) {
       return;
     }
-    ws.send(JSON.stringify(payload));
+    engine.stop();
+    setIsPlaying(false);
+  };
+
+  const applyPlaySchedule = (eventRoomId: string, at: number) => {
+    if (roomIdRef.current !== eventRoomId) {
+      return;
+    }
+    const recvWall = Date.now();
+    const snap = metronomeStateRef.current;
+    const { startWallMs, initialBeatIndex } = computeAlignedStart({
+      anchorAtMs: at,
+      recvWallMs: recvWall,
+      bpm: snap.bpm,
+      beatsPerMeasure: snap.beatsPerMeasure,
+    });
+    if (engine.isRunning()) {
+      engine.stop();
+    }
+    const started = engine.startAligned({
+      recvWallMs: recvWall,
+      startWallMs,
+      initialBeatIndex,
+    });
+    if (started) {
+      setIsPlaying(true);
+    } else {
+      setIsPlaying(false);
+    }
+  };
+
+  const sendWs = (payload: RoomClientMessage) => {
+    const ws = wsRef.current;
+    if (!ws) {
+      return;
+    }
+    ws.send(payload);
   };
 
   const connect = (targetRoomId?: string) => {
@@ -206,17 +147,11 @@ export function useMetronome(params: UseMetronomeParams) {
     }
 
     setIsConnecting(true);
-    const origin = window?.location?.origin ?? "http://localhost:4000";
-    const wsOrigin = asWsOrigin(origin);
-    const query = targetRoomId ? `?id=${encodeURIComponent(targetRoomId)}` : "";
-    const ws = new WebSocket(`${wsOrigin}/room${query}`);
+    const ws = createRoomSubscription(targetRoomId);
     wsRef.current = ws;
 
     ws.addEventListener("message", (event) => {
-      const parsed = parseServerEvent(String(event.data));
-      if (!parsed) {
-        return;
-      }
+      const parsed = event.data;
 
       if (parsed.type === "error") {
         disconnect();
@@ -238,13 +173,6 @@ export function useMetronome(params: UseMetronomeParams) {
               beats: snapshot.beatsPerMeasure,
             },
           });
-          sendWs({
-            type: "set-playing",
-            playing: {
-              updatedAt: Date.now(),
-              isPlaying: isPlayingRef.current,
-            },
-          });
         }
         return;
       }
@@ -257,8 +185,13 @@ export function useMetronome(params: UseMetronomeParams) {
         return;
       }
 
-      if (parsed.type === "playing-state") {
-        applyPlayingState(parsed.playing.isPlaying);
+      if (parsed.type === "play-schedule") {
+        applyPlaySchedule(parsed.roomId, parsed.at);
+        return;
+      }
+
+      if (parsed.type === "play-halt") {
+        applyPlayHalt(parsed.roomId);
       }
     });
 
@@ -282,7 +215,7 @@ export function useMetronome(params: UseMetronomeParams) {
     setIsServer(false);
     setIsOwner(false);
     setRoomId(null);
-    applyPlayingState(false);
+    applyPlayHalt();
   };
 
   const setBpm = (nextBpm: number) => {
@@ -333,7 +266,7 @@ export function useMetronome(params: UseMetronomeParams) {
 
   const toggle = () => {
     if (!isServerRef.current) {
-      applyPlayingState(!isPlayingRef.current);
+      applyLocalPlaying(!isPlayingRef.current);
       return;
     }
 
@@ -341,12 +274,16 @@ export function useMetronome(params: UseMetronomeParams) {
       return;
     }
 
+    if (isPlayingRef.current) {
+      sendWs({ type: "play-halt" });
+      applyPlayHalt();
+      return;
+    }
+
+    const at = Date.now() + SCHEDULE_LEAD_MS;
     sendWs({
-      type: "set-playing",
-      playing: {
-        updatedAt: Date.now(),
-        isPlaying: !isPlayingRef.current,
-      },
+      type: "play-schedule",
+      at,
     });
   };
 

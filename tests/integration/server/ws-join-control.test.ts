@@ -29,13 +29,10 @@ const metronomeStateSchema = z.object({
   }),
 });
 
-const playingStateSchema = z.object({
-  type: z.literal("playing-state"),
+const playScheduleSchema = z.object({
+  type: z.literal("play-schedule"),
   roomId: z.string(),
-  playing: z.object({
-    updatedAt: z.number(),
-    isPlaying: z.boolean(),
-  }),
+  at: z.number(),
 });
 
 const errorSchema = z.object({
@@ -70,16 +67,6 @@ describe("WebSocket join/control", () => {
     const hostMetronome = await waitForMessage(host, metronomeStateSchema);
     expect(hostMetronome.metronome).toEqual({ bpm: 140, beats: 4 });
 
-    sendJson(host, {
-      type: "set-playing",
-      playing: {
-        updatedAt: Date.now(),
-        isPlaying: true,
-      },
-    });
-    const hostPlaying = await waitForMessage(host, playingStateSchema);
-    expect(hostPlaying.playing.isPlaying).toBe(true);
-
     const member = await connectWebSocket(
       `ws://localhost:${port}/room?id=${created.roomId}`,
     );
@@ -89,12 +76,10 @@ describe("WebSocket join/control", () => {
     expect(joined.roomId).toBe(created.roomId);
 
     const metronomeState = await waitForMessage(member, metronomeStateSchema);
-    const playingState = await waitForMessage(member, playingStateSchema);
     expect(metronomeState.metronome).toEqual({
       bpm: 140,
       beats: 4,
     });
-    expect(playingState.playing.isPlaying).toBe(true);
   });
 
   it("rejects non-owner update requests", async () => {
@@ -111,7 +96,6 @@ describe("WebSocket join/control", () => {
     sockets.push(member);
     await waitForMessage(member, roomJoinedSchema);
     await waitForMessage(member, metronomeStateSchema);
-    await waitForMessage(member, playingStateSchema);
 
     sendJson(member, {
       type: "set-metronome",
@@ -123,7 +107,7 @@ describe("WebSocket join/control", () => {
     await expectNoMessage(host);
   });
 
-  it("blocks metronome configuration updates while playing", async () => {
+  it("allows metronome updates after play-schedule (no server playing lock)", async () => {
     const { port, stop } = await startTestServer();
     stopServer = stop;
 
@@ -132,19 +116,16 @@ describe("WebSocket join/control", () => {
     await waitForMessage(host, roomCreatedSchema);
 
     sendJson(host, {
-      type: "set-playing",
-      playing: {
-        updatedAt: Date.now(),
-        isPlaying: true,
-      },
+      type: "play-schedule",
+      at: Date.now() + 60_000,
     });
-    await waitForMessage(host, playingStateSchema);
+    await waitForMessage(host, playScheduleSchema);
 
     sendJson(host, {
       type: "set-metronome",
       metronome: { bpm: 150, beats: 4 },
     });
-    const blocked = await waitForMessage(host, errorSchema);
-    expect(blocked.code).toBe("PLAYING_LOCKED");
+    const updated = await waitForMessage(host, metronomeStateSchema);
+    expect(updated.metronome).toEqual({ bpm: 150, beats: 4 });
   });
 });

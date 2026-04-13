@@ -14,21 +14,16 @@ const clientMessage = t.Union([
     }),
   }),
   t.Object({
-    type: t.Literal("set-playing"),
-    playing: t.Object({
-      updatedAt: t.Number(),
-      isPlaying: t.Boolean(),
-    }),
+    type: t.Literal("play-schedule"),
+    at: t.Number(),
+  }),
+  t.Object({
+    type: t.Literal("play-halt"),
   }),
 ]);
 
 const toErrorMessage = (
-  code:
-    | "INVALID_ROOM"
-    | "UNAUTHORIZED"
-    | "INVALID_PAYLOAD"
-    | "PLAYING_LOCKED"
-    | "RATE_LIMIT",
+  code: "INVALID_ROOM" | "UNAUTHORIZED" | "INVALID_PAYLOAD" | "RATE_LIMIT",
 ) => {
   if (code === "INVALID_ROOM") {
     return "방을 찾을 수 없습니다.";
@@ -36,41 +31,65 @@ const toErrorMessage = (
   if (code === "UNAUTHORIZED") {
     return "변경 권한이 없습니다.";
   }
-  if (code === "PLAYING_LOCKED") {
-    return "재생 중에는 메트로놈 설정을 변경할 수 없습니다.";
-  }
   if (code === "RATE_LIMIT") {
     return "요청이 너무 빠릅니다.";
   }
   return "메시지 형식이 올바르지 않습니다.";
 };
 
-const resolveRoomIdFromConnection = (ws: {
-  data?: { query?: { id?: string }; request?: Request };
-}) => {
-  const queryId = ws.data?.query?.id;
-  if (queryId) {
-    return queryId;
-  }
-  const requestUrl = ws.data?.request?.url;
-  if (!requestUrl) {
-    return null;
-  }
-  const parsed = new URL(requestUrl).searchParams.get("id");
-  return parsed;
-};
-
 export function createApp(options?: CreateAppOptions) {
   const roomSync = createRoomSyncService({ now: options?.now });
   return new Elysia().ws("/room", {
     body: clientMessage,
+    query: t.Object({
+      id: t.Optional(t.String()),
+    }),
+    response: t.Union([
+      t.Object({
+        type: t.Literal("room-created"),
+        role: t.Literal("owner"),
+        roomId: t.String(),
+      }),
+      t.Object({
+        type: t.Literal("room-joined"),
+        role: t.Union([t.Literal("owner"), t.Literal("member")]),
+        roomId: t.String(),
+      }),
+      t.Object({
+        type: t.Literal("metronome-state"),
+        roomId: t.String(),
+        metronome: t.Object({
+          bpm: t.Number(),
+          beats: t.Number(),
+        }),
+      }),
+      t.Object({
+        type: t.Literal("play-schedule"),
+        roomId: t.String(),
+        at: t.Number(),
+      }),
+      t.Object({
+        type: t.Literal("play-halt"),
+        roomId: t.String(),
+      }),
+      t.Object({
+        type: t.Literal("error"),
+        code: t.Union([
+          t.Literal("INVALID_ROOM"),
+          t.Literal("UNAUTHORIZED"),
+          t.Literal("INVALID_PAYLOAD"),
+          t.Literal("RATE_LIMIT"),
+        ]),
+        message: t.String(),
+      }),
+    ]),
     open(ws) {
       roomSync.open(ws.id, (data) => {
         ws.send(data);
       });
       console.log("새로운 기기 연결됨:", ws.id);
 
-      const requestedRoomId = resolveRoomIdFromConnection(ws);
+      const requestedRoomId = ws.data.query.id;
       if (!requestedRoomId) {
         const created = roomSync.createRoom(ws.id);
         if (!created.ok) {
@@ -112,11 +131,6 @@ export function createApp(options?: CreateAppOptions) {
         roomId: joined.roomId,
         metronome: joined.metronomeState,
       });
-      ws.send({
-        type: "playing-state",
-        roomId: joined.roomId,
-        playing: joined.playingState,
-      });
     },
     message(ws, message) {
       if (message.type === "set-metronome") {
@@ -135,7 +149,22 @@ export function createApp(options?: CreateAppOptions) {
         return;
       }
 
-      const updated = roomSync.replacePlayingState(ws.id, message.playing);
+      if (message.type === "play-schedule") {
+        const updated = roomSync.relayPlaySchedule(ws.id, {
+          at: message.at,
+        });
+        if (updated.ok) {
+          return;
+        }
+        ws.send({
+          type: "error",
+          code: updated.code,
+          message: toErrorMessage(updated.code),
+        });
+        return;
+      }
+
+      const updated = roomSync.relayPlayHalt(ws.id);
       if (updated.ok) {
         return;
       }

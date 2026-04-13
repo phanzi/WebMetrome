@@ -57,12 +57,6 @@ describe("WebSocket close cleanup", () => {
     sockets.push(member);
     await waitForMessage(member, roomJoinedSchema);
     await waitForMessage(member, metronomeStateSchema);
-    await waitForMessage(
-      member,
-      z.object({
-        type: z.literal("playing-state"),
-      }),
-    );
 
     member.close();
     await Bun.sleep(20);

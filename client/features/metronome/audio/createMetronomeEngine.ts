@@ -4,6 +4,14 @@ type MetronomeEngineOptions = {
   onBeat: (beatIndex: number) => void;
 };
 
+export type StartAlignedParams = {
+  /** Wall clock ms when this handler runs (Date.now()) — aligns audio clock to wall delay. */
+  recvWallMs: number;
+  /** Absolute wall ms of the first click. */
+  startWallMs: number;
+  initialBeatIndex: number;
+};
+
 export function createMetronomeEngine(options: MetronomeEngineOptions) {
   const { onBeat } = options;
   let bpm = options.bpm;
@@ -92,6 +100,32 @@ export function createMetronomeEngine(options: MetronomeEngineOptions) {
       scheduler();
       return true;
     },
+
+    startAligned(params: StartAlignedParams): boolean {
+      if (timerId !== null) {
+        return false;
+      }
+
+      const context = getAudioContext();
+      if (!context) {
+        return false;
+      }
+
+      if (context.state === "suspended") {
+        context.resume();
+      }
+
+      const audioNow = context.currentTime;
+      const delaySec = Math.max(
+        0,
+        (params.startWallMs - params.recvWallMs) / 1000,
+      );
+      beatCounter = params.initialBeatIndex;
+      nextNoteTime = audioNow + delaySec;
+      scheduler();
+      return true;
+    },
+
     stop() {
       if (timerId !== null) {
         cancelAnimationFrame(timerId);

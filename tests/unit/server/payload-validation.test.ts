@@ -1,7 +1,4 @@
-import {
-  isValidMetronomeState,
-  isValidPlayingState,
-} from "@server/domain/roomSync";
+import { isValidMetronomeState } from "@server/domain/roomSync";
 import { describe, expect, it } from "bun:test";
 
 describe("payload validation", () => {
@@ -51,14 +48,5 @@ describe("payload validation", () => {
         beats: 3.2,
       }),
     ).toBe(false);
-  });
-
-  it("accepts valid playing state", () => {
-    expect(
-      isValidPlayingState({
-        updatedAt: Date.now(),
-        isPlaying: true,
-      }),
-    ).toBe(true);
   });
 });

@@ -12,18 +12,13 @@ export type MetronomeState = {
   beats: number;
 };
 
-export type PlayingState = {
-  updatedAt: number;
-  isPlaying: boolean;
-};
-
 export type ClientRole = "owner" | "member";
 
 export type ServerMessage =
   | {
       type: "room-created";
       roomId: string;
-      role: ClientRole;
+      role: "owner";
     }
   | {
       type: "room-joined";
@@ -36,18 +31,17 @@ export type ServerMessage =
       metronome: MetronomeState;
     }
   | {
-      type: "playing-state";
+      type: "play-schedule";
       roomId: string;
-      playing: PlayingState;
+      at: number;
+    }
+  | {
+      type: "play-halt";
+      roomId: string;
     }
   | {
       type: "error";
-      code:
-        | "INVALID_ROOM"
-        | "UNAUTHORIZED"
-        | "INVALID_PAYLOAD"
-        | "PLAYING_LOCKED"
-        | "RATE_LIMIT";
+      code: "INVALID_ROOM" | "UNAUTHORIZED" | "INVALID_PAYLOAD" | "RATE_LIMIT";
       message: string;
     };
 
@@ -69,19 +63,11 @@ const metronomeStateSchema = z.object({
     .refine((value) => ALLOWED_BEATS.has(value), "Unsupported beats"),
 });
 
-const playingStateSchema = z.object({
-  updatedAt: z.number().int().nonnegative(),
-  isPlaying: z.boolean(),
-});
+const playScheduleAtSchema = z.number().int();
 
 const createDefaultMetronomeState = (): MetronomeState => ({
   bpm: 120,
   beats: 4,
-});
-
-const createDefaultPlayingState = (now: number): PlayingState => ({
-  updatedAt: now,
-  isPlaying: false,
 });
 
 const roomIdAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -90,7 +76,6 @@ type Room = {
   ownerConnectionId: string;
   members: Set<string>;
   metronomeState: MetronomeState;
-  playingState: PlayingState;
 };
 
 export const normalizeRoomId = (roomId: string): string | null => {
@@ -100,9 +85,6 @@ export const normalizeRoomId = (roomId: string): string | null => {
 
 export const isValidMetronomeState = (payload: MetronomeState): boolean =>
   metronomeStateSchema.safeParse(payload).success;
-
-export const isValidPlayingState = (payload: PlayingState): boolean =>
-  playingStateSchema.safeParse(payload).success;
 
 const createRoomId = (existing: Set<string>): string => {
   for (let attempt = 0; attempt < 30; attempt += 1) {
@@ -116,6 +98,11 @@ const createRoomId = (existing: Set<string>): string => {
     }
   }
   throw new Error("Failed to create unique room id");
+};
+
+const validatePlayScheduleAt = (at: number, getNow: () => number): boolean => {
+  const now = getNow();
+  return at >= now - 120_000 && at <= now + 3_600_000;
 };
 
 export function createRoomSyncService(
@@ -156,11 +143,7 @@ export function createRoomSyncService(
     rooms.set(roomId, room);
   };
 
-  const canUpdateMetronome = (room: Room, connectionId: string): boolean =>
-    room.ownerConnectionId === connectionId;
-
-  // Keep permission checks separated for future extension.
-  const canUpdatePlaying = (room: Room, connectionId: string): boolean =>
+  const canOwnerControl = (room: Room, connectionId: string): boolean =>
     room.ownerConnectionId === connectionId;
 
   const broadcast = (roomId: string, message: ServerMessage) => {
@@ -203,7 +186,6 @@ export function createRoomSyncService(
         ownerConnectionId: connectionId,
         members: new Set([connectionId]),
         metronomeState: createDefaultMetronomeState(),
-        playingState: createDefaultPlayingState(getNow()),
       };
 
       rooms.set(roomId, room);
@@ -220,7 +202,6 @@ export function createRoomSyncService(
           roomId: string;
           role: ClientRole;
           metronomeState: MetronomeState;
-          playingState: PlayingState;
         }
       | {
           ok: false;
@@ -248,7 +229,6 @@ export function createRoomSyncService(
         roomId: normalized,
         role: room.ownerConnectionId === connectionId ? "owner" : "member",
         metronomeState: { ...room.metronomeState },
-        playingState: { ...room.playingState },
       };
     },
 
@@ -263,7 +243,6 @@ export function createRoomSyncService(
             | "INVALID_ROOM"
             | "UNAUTHORIZED"
             | "INVALID_PAYLOAD"
-            | "PLAYING_LOCKED"
             | "RATE_LIMIT";
         } {
       const roomId = connectionRoom.get(connectionId) ?? null;
@@ -280,12 +259,8 @@ export function createRoomSyncService(
         return { ok: false, code: "INVALID_ROOM" };
       }
 
-      if (!canUpdateMetronome(room, connectionId)) {
+      if (!canOwnerControl(room, connectionId)) {
         return { ok: false, code: "UNAUTHORIZED" };
-      }
-
-      if (room.playingState.isPlaying) {
-        return { ok: false, code: "PLAYING_LOCKED" };
       }
 
       const parsed = metronomeStateSchema.safeParse(payload);
@@ -306,11 +281,11 @@ export function createRoomSyncService(
       return { ok: true, roomId, metronomeState };
     },
 
-    replacePlayingState(
+    relayPlaySchedule(
       connectionId: string,
-      payload: PlayingState,
+      payload: { at: number },
     ):
-      | { ok: true; roomId: string; playingState: PlayingState }
+      | { ok: true; roomId: string; at: number }
       | {
           ok: false;
           code:
@@ -332,25 +307,55 @@ export function createRoomSyncService(
       if (!room) {
         return { ok: false, code: "INVALID_ROOM" };
       }
-      if (!canUpdatePlaying(room, connectionId)) {
+      if (!canOwnerControl(room, connectionId)) {
         return { ok: false, code: "UNAUTHORIZED" };
       }
 
-      const parsed = playingStateSchema.safeParse(payload);
-      if (!parsed.success) {
+      const parsedAt = playScheduleAtSchema.safeParse(payload.at);
+      if (!parsedAt.success) {
+        return { ok: false, code: "INVALID_PAYLOAD" };
+      }
+      const at = parsedAt.data;
+      if (!validatePlayScheduleAt(at, getNow)) {
         return { ok: false, code: "INVALID_PAYLOAD" };
       }
 
-      const playingState = { ...parsed.data };
-      room.playingState = playingState;
-      rooms.set(roomId, room);
+      broadcast(roomId, {
+        type: "play-schedule",
+        roomId,
+        at,
+      });
+      return { ok: true, roomId, at };
+    },
+
+    relayPlayHalt(connectionId: string):
+      | { ok: true; roomId: string }
+      | {
+          ok: false;
+          code: "INVALID_ROOM" | "UNAUTHORIZED" | "RATE_LIMIT";
+        } {
+      const roomId = connectionRoom.get(connectionId) ?? null;
+      if (!roomId) {
+        return { ok: false, code: "INVALID_ROOM" };
+      }
+
+      if (!controlRateLimiter.allow(connectionId, "playing")) {
+        return { ok: false, code: "RATE_LIMIT" };
+      }
+
+      const room = rooms.get(roomId);
+      if (!room) {
+        return { ok: false, code: "INVALID_ROOM" };
+      }
+      if (!canOwnerControl(room, connectionId)) {
+        return { ok: false, code: "UNAUTHORIZED" };
+      }
 
       broadcast(roomId, {
-        type: "playing-state",
+        type: "play-halt",
         roomId,
-        playing: playingState,
       });
-      return { ok: true, roomId, playingState };
+      return { ok: true, roomId };
     },
 
     close(connectionId: string) {

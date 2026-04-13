@@ -59,20 +59,8 @@ describe("WebSocket room isolation", () => {
     sockets.push(memberA, memberB);
     await waitForMessage(memberA, roomJoinedSchema);
     await waitForMessage(memberA, metronomeStateSchema);
-    await waitForMessage(
-      memberA,
-      z.object({
-        type: z.literal("playing-state"),
-      }),
-    );
     await waitForMessage(memberB, roomJoinedSchema);
     await waitForMessage(memberB, metronomeStateSchema);
-    await waitForMessage(
-      memberB,
-      z.object({
-        type: z.literal("playing-state"),
-      }),
-    );
 
     sendJson(host, {
       type: "set-metronome",
