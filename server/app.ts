@@ -1,6 +1,10 @@
 import { Elysia, t } from "elysia";
 import { createRoomSyncService } from "./domain/roomSync";
 
+export type CreateAppOptions = {
+  now?: () => number;
+};
+
 const clientMessage = t.Union([
   t.Object({
     type: t.Literal("set-metronome"),
@@ -56,8 +60,8 @@ const resolveRoomIdFromConnection = (ws: {
   return parsed;
 };
 
-export function createApp() {
-  const roomSync = createRoomSyncService();
+export function createApp(options?: CreateAppOptions) {
+  const roomSync = createRoomSyncService({ now: options?.now });
   return new Elysia().ws("/room", {
     body: clientMessage,
     open(ws) {

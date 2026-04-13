@@ -4,8 +4,8 @@ import {
 } from "@server/domain/roomSync";
 import { describe, expect, it, mock } from "bun:test";
 
-describe("createRoomSyncService rate limit", () => {
-  it("drops too frequent control messages", () => {
+describe("createRoomSyncService (room + rate limiter wiring)", () => {
+  it("drops too frequent metronome updates", () => {
     let now = 1000;
     const service = createRoomSyncService({
       now: () => now,

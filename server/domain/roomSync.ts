@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { createControlRateLimiter } from "./controlRateLimit";
 
 export const ROOM_ID_PATTERN = /^[A-Z0-9]{4,12}$/;
 export const MIN_BPM = 20;
 export const MAX_BPM = 300;
 export const ALLOWED_BEATS = new Set([2, 3, 4, 6, 8]);
-export const MIN_CONTROL_INTERVAL_MS = 30;
+export { MIN_CONTROL_INTERVAL_MS } from "./controlRateLimit";
 
 export type MetronomeState = {
   bpm: number;
@@ -121,15 +122,9 @@ export function createRoomSyncService(
   options: CreateRoomSyncServiceOptions = {},
 ) {
   const getNow = options.now ?? Date.now;
+  const controlRateLimiter = createControlRateLimiter({ now: getNow });
   const rooms = new Map<string, Room>();
   const connectionRoom = new Map<string, string | null>();
-  const lastControlAt = new Map<
-    string,
-    {
-      metronome: number;
-      playing: number;
-    }
-  >();
 
   const removeRoomMembership = (
     roomId: string | null,
@@ -159,25 +154,6 @@ export function createRoomSyncService(
     }
 
     rooms.set(roomId, room);
-  };
-
-  const ensureRateLimit = (
-    connectionId: string,
-    key: "metronome" | "playing",
-  ): boolean => {
-    const now = getNow();
-    const prev = lastControlAt.get(connectionId) ?? {
-      metronome: 0,
-      playing: 0,
-    };
-    if (now - prev[key] < MIN_CONTROL_INTERVAL_MS) {
-      return false;
-    }
-    lastControlAt.set(connectionId, {
-      ...prev,
-      [key]: now,
-    });
-    return true;
   };
 
   const canUpdateMetronome = (room: Room, connectionId: string): boolean =>
@@ -211,10 +187,6 @@ export function createRoomSyncService(
     open(connectionId: string, send: (data: ServerMessage) => void) {
       members.set(connectionId, { send });
       connectionRoom.set(connectionId, null);
-      lastControlAt.set(connectionId, {
-        metronome: 0,
-        playing: 0,
-      });
     },
 
     createRoom(
@@ -299,7 +271,7 @@ export function createRoomSyncService(
         return { ok: false, code: "INVALID_ROOM" };
       }
 
-      if (!ensureRateLimit(connectionId, "metronome")) {
+      if (!controlRateLimiter.allow(connectionId, "metronome")) {
         return { ok: false, code: "RATE_LIMIT" };
       }
 
@@ -352,7 +324,7 @@ export function createRoomSyncService(
         return { ok: false, code: "INVALID_ROOM" };
       }
 
-      if (!ensureRateLimit(connectionId, "playing")) {
+      if (!controlRateLimiter.allow(connectionId, "playing")) {
         return { ok: false, code: "RATE_LIMIT" };
       }
 
@@ -385,7 +357,7 @@ export function createRoomSyncService(
       const roomId = connectionRoom.get(connectionId) ?? null;
       removeFromRoom(roomId, connectionId);
       connectionRoom.delete(connectionId);
-      lastControlAt.delete(connectionId);
+      controlRateLimiter.clear(connectionId);
       members.delete(connectionId);
     },
 
