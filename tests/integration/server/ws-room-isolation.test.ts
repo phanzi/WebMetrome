@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { z } from "zod";
 import { startTestServer } from "../../fixtures/test-server";
 import {
   connectWebSocket,
@@ -6,6 +7,10 @@ import {
   sendJson,
   waitForMessage,
 } from "../../fixtures/ws-client";
+
+const roomMessageSchema = z.object({
+  bpm: z.number(),
+});
 
 describe("WebSocket room isolation", () => {
   const sockets: WebSocket[] = [];
@@ -41,7 +46,7 @@ describe("WebSocket room isolation", () => {
       isPlaying: true,
     });
 
-    const roomMessage = await waitForMessage<{ bpm: number }>(memberA);
+    const roomMessage = await waitForMessage(memberA, roomMessageSchema);
     expect(roomMessage.bpm).toBe(128);
     await expectNoMessage(memberB);
   });

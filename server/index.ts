@@ -1,11 +1,17 @@
 import { staticPlugin } from "@elysiajs/static";
 import { Elysia } from "elysia";
 import { join } from "node:path";
+import { z } from "zod";
 import { createApp } from "./app";
 
+const portSchema = z
+  .string()
+  .transform((value) => Number.parseInt(value, 10))
+  .pipe(z.number().finite().int().positive());
+
 export const resolvePort = (portCandidate: string | undefined): number => {
-  const parsed = Number.parseInt(portCandidate ?? "", 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 4000;
+  const parsed = portSchema.safeParse(portCandidate ?? "");
+  return parsed.success ? parsed.data : 4000;
 };
 
 export async function buildServer(isDev: boolean) {

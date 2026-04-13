@@ -1,6 +1,12 @@
 import { treaty } from "@elysiajs/eden/treaty2";
 import { useEffect, useRef, useState } from "react";
+import { z } from "zod";
 import type { App } from "../../../../server/app";
+import {
+  ALLOWED_BEATS,
+  MAX_BPM,
+  MIN_BPM,
+} from "../../metronome/domain/constants";
 
 type ControlPayload = {
   bpm: number;
@@ -14,6 +20,26 @@ type UseRoomSyncParams = {
 };
 
 type SyncWs = ReturnType<ReturnType<typeof treaty<App>>["sync"]["subscribe"]>;
+
+const roomCodeSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z0-9]{4,12}$/);
+
+const controlPayloadSchema = z.object({
+  type: z.literal("control"),
+  roomId: roomCodeSchema,
+  bpm: z.number().finite().int().min(MIN_BPM).max(MAX_BPM),
+  beats: z
+    .number()
+    .finite()
+    .int()
+    .refine((value) =>
+      ALLOWED_BEATS.includes(value as (typeof ALLOWED_BEATS)[number]),
+    ),
+  isPlaying: z.boolean(),
+});
 
 function apiOrigin(): string {
   return window?.location?.origin ?? "http://localhost:4000";
@@ -82,7 +108,11 @@ export function useRoomSync(params: UseRoomSyncParams) {
   };
 
   const joinRoom = (roomCode: string) => {
-    const normalized = roomCode.toUpperCase();
+    const parsed = roomCodeSchema.safeParse(roomCode);
+    if (!parsed.success) {
+      return;
+    }
+    const normalized = parsed.data;
     setRoomId(normalized);
     setIsLive(true);
     setIsMaster(false);
@@ -110,13 +140,17 @@ export function useRoomSync(params: UseRoomSyncParams) {
     if (!client) {
       return;
     }
-    client.send({
+    const payload = controlPayloadSchema.safeParse({
       type: "control",
       roomId,
       bpm: control.bpm,
       beats: control.beats,
       isPlaying: control.isPlaying,
     });
+    if (!payload.success) {
+      return;
+    }
+    client.send(payload.data);
   }, [
     control.beats,
     control.bpm,

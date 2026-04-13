@@ -1,16 +1,22 @@
 import { createServer } from "node:net";
+import { z } from "zod";
 import { createApp } from "../../server/app";
+
+const serverAddressSchema = z.object({
+  port: z.number().finite().int().positive(),
+});
 
 const getFreePort = async (): Promise<number> =>
   new Promise((resolve, reject) => {
     const server = createServer();
     server.listen(0, () => {
       const address = server.address();
-      if (!address || typeof address === "string") {
+      const parsedAddress = serverAddressSchema.safeParse(address);
+      if (!parsedAddress.success) {
         reject(new Error("Unable to resolve test port"));
         return;
       }
-      const { port } = address;
+      const { port } = parsedAddress.data;
       server.close(() => {
         resolve(port);
       });

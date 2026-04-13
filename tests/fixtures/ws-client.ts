@@ -1,3 +1,5 @@
+import type { ZodType } from "zod";
+
 export const connectWebSocket = (url: string): Promise<WebSocket> =>
   new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
@@ -15,6 +17,7 @@ export const sendJson = (ws: WebSocket, payload: unknown) => {
 
 export const waitForMessage = <T>(
   ws: WebSocket,
+  schema: ZodType<T>,
   timeoutMs = 1000,
 ): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -25,7 +28,12 @@ export const waitForMessage = <T>(
     const handler = (event: MessageEvent) => {
       clearTimeout(timeoutId);
       ws.removeEventListener("message", handler);
-      resolve(JSON.parse(String(event.data)) as T);
+      try {
+        const rawData = JSON.parse(String(event.data));
+        resolve(schema.parse(rawData));
+      } catch (error) {
+        reject(error);
+      }
     };
 
     ws.addEventListener("message", handler);

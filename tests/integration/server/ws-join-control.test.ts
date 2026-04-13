@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { z } from "zod";
 import { startTestServer } from "../../fixtures/test-server";
 import {
   connectWebSocket,
   sendJson,
   waitForMessage,
 } from "../../fixtures/ws-client";
+
+const controlMessageSchema = z.object({
+  bpm: z.number(),
+  beats: z.number(),
+  isPlaying: z.boolean(),
+});
 
 describe("WebSocket join/control", () => {
   const sockets: WebSocket[] = [];
@@ -38,11 +45,7 @@ describe("WebSocket join/control", () => {
       isPlaying: true,
     });
 
-    const message = await waitForMessage<{
-      bpm: number;
-      beats: number;
-      isPlaying: boolean;
-    }>(member);
+    const message = await waitForMessage(member, controlMessageSchema);
 
     expect(message).toEqual({
       bpm: 140,

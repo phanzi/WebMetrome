@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { z } from "zod";
 import { startTestServer } from "../../fixtures/test-server";
 import {
   connectWebSocket,
@@ -6,6 +7,11 @@ import {
   sendJson,
   waitForMessage,
 } from "../../fixtures/ws-client";
+
+const controlMessageSchema = z.object({
+  bpm: z.number(),
+  isPlaying: z.boolean(),
+});
 
 describe("WebSocket close cleanup", () => {
   const sockets: WebSocket[] = [];
@@ -48,8 +54,9 @@ describe("WebSocket close cleanup", () => {
       isPlaying: false,
     });
 
-    const message = await waitForMessage<{ bpm: number; isPlaying: boolean }>(
+    const message = await waitForMessage(
       replacementMember,
+      controlMessageSchema,
     );
     expect(message.bpm).toBe(100);
     expect(message.isPlaying).toBe(false);

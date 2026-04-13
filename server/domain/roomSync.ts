@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export const ROOM_ID_PATTERN = /^[A-Z0-9]{4,12}$/;
 export const MIN_BPM = 20;
 export const MAX_BPM = 300;
@@ -22,20 +24,25 @@ type CreateRoomSyncServiceOptions = {
 
 export type RoomSyncService = ReturnType<typeof createRoomSyncService>;
 
+const roomIdSchema = z.string().trim().toUpperCase().regex(ROOM_ID_PATTERN);
+
+const controlPayloadSchema = z.object({
+  bpm: z.number().finite().int().min(MIN_BPM).max(MAX_BPM),
+  beats: z
+    .number()
+    .finite()
+    .int()
+    .refine((value) => ALLOWED_BEATS.has(value)),
+  isPlaying: z.boolean(),
+});
+
 export const normalizeRoomId = (roomId: string): string | null => {
-  const normalized = roomId.trim().toUpperCase();
-  return ROOM_ID_PATTERN.test(normalized) ? normalized : null;
+  const parsed = roomIdSchema.safeParse(roomId);
+  return parsed.success ? parsed.data : null;
 };
 
 export const isValidControlPayload = (payload: ControlPayload): boolean =>
-  Number.isFinite(payload.bpm) &&
-  Number.isInteger(payload.bpm) &&
-  payload.bpm >= MIN_BPM &&
-  payload.bpm <= MAX_BPM &&
-  Number.isFinite(payload.beats) &&
-  Number.isInteger(payload.beats) &&
-  ALLOWED_BEATS.has(payload.beats) &&
-  typeof payload.isPlaying === "boolean";
+  controlPayloadSchema.safeParse(payload).success;
 
 export function createRoomSyncService(
   options: CreateRoomSyncServiceOptions = {},
