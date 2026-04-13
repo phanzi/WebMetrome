@@ -3,6 +3,7 @@ description: "TypeScript hooks extending common rules"
 globs: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
 alwaysApply: false
 ---
+
 # TypeScript/JavaScript Hooks
 
 > This file extends the common hooks rule with TypeScript/JavaScript specific content.

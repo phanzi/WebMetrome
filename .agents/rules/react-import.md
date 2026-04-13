@@ -3,6 +3,7 @@ description: React import 패턴 - import * as React 금지, named import 사용
 globs: **/*.ts,**/*.tsx
 alwaysApply: false
 ---
+
 # React Import Conventions
 
 `import * as React from "react"` 구문을 사용하지 않는다.

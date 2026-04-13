@@ -2,6 +2,7 @@
 description: "Development workflow: plan, TDD, review, commit pipeline"
 alwaysApply: true
 ---
+
 # Development Workflow
 
 > This rule extends the git workflow rule with the full feature development process that happens before git operations.

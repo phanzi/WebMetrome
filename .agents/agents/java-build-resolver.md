@@ -45,20 +45,20 @@ Run these in order:
 
 ## Common Fix Patterns
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `cannot find symbol` | Missing import, typo, missing dependency | Add import or dependency |
-| `incompatible types: X cannot be converted to Y` | Wrong type, missing cast | Add explicit cast or fix type |
-| `method X in class Y cannot be applied to given types` | Wrong argument types or count | Fix arguments or check overloads |
-| `variable X might not have been initialized` | Uninitialized local variable | Initialise variable before use |
-| `non-static method X cannot be referenced from a static context` | Instance method called statically | Create instance or make method static |
-| `reached end of file while parsing` | Missing closing brace | Add missing `}` |
-| `package X does not exist` | Missing dependency or wrong import | Add dependency to `pom.xml`/`build.gradle` |
-| `error: cannot access X, class file not found` | Missing transitive dependency | Add explicit dependency |
-| `Annotation processor threw uncaught exception` | Lombok/MapStruct misconfiguration | Check annotation processor setup |
-| `Could not resolve: group:artifact:version` | Missing repository or wrong version | Add repository or fix version in POM |
-| `The following artifacts could not be resolved` | Private repo or network issue | Check repository credentials or `settings.xml` |
-| `COMPILATION ERROR: Source option X is no longer supported` | Java version mismatch | Update `maven.compiler.source` / `targetCompatibility` |
+| Error                                                            | Cause                                    | Fix                                                    |
+| ---------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------ |
+| `cannot find symbol`                                             | Missing import, typo, missing dependency | Add import or dependency                               |
+| `incompatible types: X cannot be converted to Y`                 | Wrong type, missing cast                 | Add explicit cast or fix type                          |
+| `method X in class Y cannot be applied to given types`           | Wrong argument types or count            | Fix arguments or check overloads                       |
+| `variable X might not have been initialized`                     | Uninitialized local variable             | Initialise variable before use                         |
+| `non-static method X cannot be referenced from a static context` | Instance method called statically        | Create instance or make method static                  |
+| `reached end of file while parsing`                              | Missing closing brace                    | Add missing `}`                                        |
+| `package X does not exist`                                       | Missing dependency or wrong import       | Add dependency to `pom.xml`/`build.gradle`             |
+| `error: cannot access X, class file not found`                   | Missing transitive dependency            | Add explicit dependency                                |
+| `Annotation processor threw uncaught exception`                  | Lombok/MapStruct misconfiguration        | Check annotation processor setup                       |
+| `Could not resolve: group:artifact:version`                      | Missing repository or wrong version      | Add repository or fix version in POM                   |
+| `The following artifacts could not be resolved`                  | Private repo or network issue            | Check repository credentials or `settings.xml`         |
+| `COMPILATION ERROR: Source option X is no longer supported`      | Java version mismatch                    | Update `maven.compiler.source` / `targetCompatibility` |
 
 ## Maven Troubleshooting
 
@@ -134,6 +134,7 @@ grep -A5 "annotationProcessorPaths\|annotationProcessor" pom.xml build.gradle
 ## Stop Conditions
 
 Stop and report if:
+
 - Same error persists after 3 fix attempts
 - Fix introduces more errors than it resolves
 - Error requires architectural changes beyond scope
