@@ -14,14 +14,6 @@ const config = {
       (module) => module.default,
     ),
   ],
-  overrides: [
-    {
-      files: "src/shared/lib/constant.ts",
-      options: {
-        printWidth: Infinity,
-      },
-    },
-  ],
 };
 
 export default config;
