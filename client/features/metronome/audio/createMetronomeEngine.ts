@@ -1,3 +1,16 @@
+import { clamp } from "es-toolkit/compat";
+import {
+  AUDIO_ACCENT_DURATION_SEC,
+  AUDIO_ACCENT_FREQUENCY_HZ,
+  AUDIO_RAMP_MIN_GAIN,
+  AUDIO_REGULAR_DURATION_SEC,
+  AUDIO_REGULAR_FREQUENCY_HZ,
+  DEFAULT_START_DELAY_SEC,
+  MS_PER_SECOND,
+  SCHEDULER_LOOKAHEAD_SEC,
+  SECONDS_PER_MINUTE,
+} from "./constants";
+
 type MetronomeEngineOptions = {
   bpm: number;
   beatsPerMeasure: number;
@@ -51,10 +64,17 @@ export function createMetronomeEngine(options: MetronomeEngineOptions) {
     const osc = audioContext.createOscillator();
     const gain = audioContext.createGain();
 
-    osc.frequency.value = isFirstBeat ? 1600 : 800;
-    const duration = isFirstBeat ? 0.12 : 0.06;
+    osc.frequency.value = isFirstBeat
+      ? AUDIO_ACCENT_FREQUENCY_HZ
+      : AUDIO_REGULAR_FREQUENCY_HZ;
+    const duration = isFirstBeat
+      ? AUDIO_ACCENT_DURATION_SEC
+      : AUDIO_REGULAR_DURATION_SEC;
     gain.gain.setValueAtTime(1, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+    gain.gain.exponentialRampToValueAtTime(
+      AUDIO_RAMP_MIN_GAIN,
+      time + duration,
+    );
 
     osc.connect(gain);
     gain.connect(audioContext.destination);
@@ -67,13 +87,13 @@ export function createMetronomeEngine(options: MetronomeEngineOptions) {
       return;
     }
 
-    while (nextNoteTime < audioContext.currentTime + 0.1) {
+    while (nextNoteTime < audioContext.currentTime + SCHEDULER_LOOKAHEAD_SEC) {
       const isFirstBeat = beatCounter % beatsPerMeasure === 0;
       const beatIndex = beatCounter % beatsPerMeasure;
       playSound(nextNoteTime, isFirstBeat);
       onBeat(beatIndex);
 
-      nextNoteTime += 60.0 / bpm;
+      nextNoteTime += SECONDS_PER_MINUTE / bpm;
       beatCounter += 1;
     }
 
@@ -96,7 +116,7 @@ export function createMetronomeEngine(options: MetronomeEngineOptions) {
       }
 
       beatCounter = 0;
-      nextNoteTime = context.currentTime + 0.05;
+      nextNoteTime = context.currentTime + DEFAULT_START_DELAY_SEC;
       scheduler();
       return true;
     },
@@ -116,9 +136,10 @@ export function createMetronomeEngine(options: MetronomeEngineOptions) {
       }
 
       const audioNow = context.currentTime;
-      const delaySec = Math.max(
+      const delaySec = clamp(
+        (params.startWallMs - params.recvWallMs) / MS_PER_SECOND,
         0,
-        (params.startWallMs - params.recvWallMs) / 1000,
+        Number.POSITIVE_INFINITY,
       );
       beatCounter = params.initialBeatIndex;
       nextNoteTime = audioNow + delaySec;

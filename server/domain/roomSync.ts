@@ -1,10 +1,19 @@
 import type { ResponseSchema } from "@server/app";
+import { inRange, isInteger, isNumber, isObject } from "es-toolkit/compat";
 import { z } from "zod";
-
-export const ROOM_ID_PATTERN = /^[A-Z0-9]{4,12}$/;
-export const MIN_BPM = 20;
-export const MAX_BPM = 300;
-export const ALLOWED_BEATS = new Set([2, 3, 4, 6, 8]);
+import {
+  ALLOWED_BEATS,
+  DEFAULT_BEATS,
+  DEFAULT_BPM,
+  MAX_BPM,
+  MIN_BPM,
+  PLAY_SCHEDULE_FUTURE_LIMIT_MS,
+  PLAY_SCHEDULE_PAST_TOLERANCE_MS,
+  ROOM_ID_ALPHABET,
+  ROOM_ID_GENERATE_ATTEMPTS,
+  ROOM_ID_PATTERN,
+  ROOM_ID_RANDOM_LENGTH,
+} from "./constants";
 
 export type MetronomeState = {
   bpm: number;
@@ -25,22 +34,10 @@ type CreateRoomSyncServiceOptions = {
 
 const roomIdSchema = z.string().trim().toUpperCase().regex(ROOM_ID_PATTERN);
 
-const metronomeStateSchema = z.object({
-  bpm: z.number().int().min(MIN_BPM).max(MAX_BPM),
-  beats: z
-    .number()
-    .int()
-    .refine((value) => ALLOWED_BEATS.has(value), "Unsupported beats"),
-});
-
-const playScheduleAtSchema = z.number().int();
-
 const createDefaultMetronomeState = (): MetronomeState => ({
-  bpm: 120,
-  beats: 4,
+  bpm: DEFAULT_BPM,
+  beats: DEFAULT_BEATS,
 });
-
-const roomIdAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 type Room = {
   ownerConnectionId: string;
@@ -54,15 +51,35 @@ export const normalizeRoomId = (roomId: string): string | null => {
   return parsed.success ? parsed.data : null;
 };
 
-export const isValidMetronomeState = (payload: MetronomeState): boolean =>
-  metronomeStateSchema.safeParse(payload).success;
+export const isValidMetronomeState = (
+  payload: unknown,
+): payload is MetronomeState => {
+  if (!isObject(payload)) {
+    return false;
+  }
+  const candidate = payload as { bpm?: unknown; beats?: unknown };
+  if (
+    !isNumber(candidate.bpm) ||
+    !isNumber(candidate.beats) ||
+    !isInteger(candidate.bpm) ||
+    !isInteger(candidate.beats)
+  ) {
+    return false;
+  }
+  return (
+    inRange(candidate.bpm, MIN_BPM, MAX_BPM + 1) &&
+    ALLOWED_BEATS.has(candidate.beats)
+  );
+};
 
 const createRoomId = (existing: Set<string>): string => {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    const random = crypto.getRandomValues(new Uint32Array(6));
+  for (let attempt = 0; attempt < ROOM_ID_GENERATE_ATTEMPTS; attempt += 1) {
+    const random = crypto.getRandomValues(
+      new Uint32Array(ROOM_ID_RANDOM_LENGTH),
+    );
     const next = Array.from(
       random,
-      (value) => roomIdAlphabet[value % roomIdAlphabet.length],
+      (value) => ROOM_ID_ALPHABET[value % ROOM_ID_ALPHABET.length],
     ).join("");
     if (!existing.has(next)) {
       return next;
@@ -73,7 +90,12 @@ const createRoomId = (existing: Set<string>): string => {
 
 const validatePlayScheduleAt = (at: number, getNow: () => number): boolean => {
   const now = getNow();
-  return at >= now - 120_000 && at <= now + 3_600_000;
+  // inclusive upper bound by adding +1 to half-open inRange
+  return inRange(
+    at,
+    now - PLAY_SCHEDULE_PAST_TOLERANCE_MS,
+    now + PLAY_SCHEDULE_FUTURE_LIMIT_MS + 1,
+  );
 };
 
 export function createRoomSyncService(
@@ -230,12 +252,14 @@ export function createRoomSyncService(
         return { ok: false, code: "UNAUTHORIZED" };
       }
 
-      const parsed = metronomeStateSchema.safeParse(payload);
-      if (!parsed.success) {
+      if (!isValidMetronomeState(payload)) {
         return { ok: false, code: "INVALID_PAYLOAD" };
       }
 
-      const metronomeState = { ...parsed.data };
+      const metronomeState = {
+        bpm: payload.bpm,
+        beats: payload.beats,
+      };
       room.metronomeState = metronomeState;
       rooms.set(roomId, room);
 
@@ -270,11 +294,14 @@ export function createRoomSyncService(
         return { ok: false, code: "UNAUTHORIZED" };
       }
 
-      const parsedAt = playScheduleAtSchema.safeParse(payload.at);
-      if (!parsedAt.success) {
+      if (
+        !isObject(payload) ||
+        !isNumber(payload.at) ||
+        !isInteger(payload.at)
+      ) {
         return { ok: false, code: "INVALID_PAYLOAD" };
       }
-      const at = parsedAt.data;
+      const at = payload.at;
       if (!validatePlayScheduleAt(at, getNow)) {
         return { ok: false, code: "INVALID_PAYLOAD" };
       }

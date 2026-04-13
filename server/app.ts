@@ -1,6 +1,11 @@
 import { Elysia, t } from "elysia";
 import { createRoomSyncService } from "./domain/roomSync";
-import { createRateLimiter } from "./shared/controlRateLimit";
+import {
+  MIN_CONTROL_INTERVAL_MS,
+  createRateLimiter,
+} from "./shared/controlRateLimit";
+
+export { MIN_CONTROL_INTERVAL_MS, createRateLimiter };
 
 const toErrorMessage = (
   code: "INVALID_ROOM" | "UNAUTHORIZED" | "INVALID_PAYLOAD" | "RATE_LIMIT",

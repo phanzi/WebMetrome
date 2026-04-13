@@ -1,5 +1,5 @@
+import { compact, range } from "es-toolkit";
 import { ALLOWED_BEATS, MAX_BPM, MIN_BPM } from "../domain/constants";
-import { clampBpm } from "../domain/guards";
 
 type Props = {
   bpm: number;
@@ -99,9 +99,9 @@ export function MetronomeScreen(props: Props) {
       </header>
 
       <div className="mb-4 flex min-h-27.5 items-center justify-center gap-2 rounded-[25px] border border-slate-200 bg-slate-100">
-        {Array.from({ length: beatsPerMeasure }).map((_, i) => (
+        {range(0, beatsPerMeasure).map((i) => (
           <div
-            className={[
+            className={compact([
               "flex items-center justify-center rounded-full font-bold text-white transition-all duration-100",
               i === 0
                 ? "h-13.75 w-13.75 text-[1.2rem]"
@@ -111,9 +111,9 @@ export function MetronomeScreen(props: Props) {
                   ? "scale-110 animate-pulse bg-orange-500 shadow-[0_0_20px_rgba(230,126,34,0.9)]"
                   : "scale-110 animate-pulse bg-emerald-500 shadow-[0_0_20px_rgba(46,204,113,0.9)]"
                 : "bg-slate-700",
-              i === 0 ? "border-2 border-white" : "",
-              isPlaying && currentBeat === i ? pulseDurationClass : "",
-            ].join(" ")}
+              i === 0 ? "border-2 border-white" : undefined,
+              isPlaying && currentBeat === i ? pulseDurationClass : undefined,
+            ]).join(" ")}
             key={i}
           >
             {i + 1}
@@ -132,9 +132,7 @@ export function MetronomeScreen(props: Props) {
             value={displayBpm}
             disabled={!canEditMetronomeSettings}
             onChange={(e) => onDisplayBpmChange(Number(e.target.value))}
-            onBlur={() => {
-              onCommitBpm(clampBpm(displayBpm));
-            }}
+            onBlur={() => onCommitBpm(displayBpm)}
           />
         </div>
         <input
@@ -159,13 +157,13 @@ export function MetronomeScreen(props: Props) {
         <div className="mt-2.5 flex gap-2">
           {ALLOWED_BEATS.map((beats) => (
             <button
-              className={[
+              className={compact([
                 "flex-1 rounded-lg border px-0 py-2.5 font-bold transition",
                 beatsPerMeasure === beats
                   ? "border-blue-500 bg-blue-500 text-white"
                   : "border-slate-300 bg-white text-slate-700",
                 canEditClass,
-              ].join(" ")}
+              ]).join(" ")}
               key={beats}
               onClick={() => onBeatsChange(beats)}
               disabled={!canEditMetronomeSettings}
@@ -177,13 +175,13 @@ export function MetronomeScreen(props: Props) {
       </div>
 
       <button
-        className={[
+        className={compact([
           "mt-2.5 w-full rounded-[40px] border-none px-5 py-5 text-[1.4rem] font-bold text-white transition",
           isPlaying
             ? "bg-red-500 hover:bg-red-600"
             : "bg-blue-500 hover:bg-blue-600",
           canToggleClass,
-        ].join(" ")}
+        ]).join(" ")}
         onClick={onToggleMetronome}
         disabled={!canToggleMetronome}
       >

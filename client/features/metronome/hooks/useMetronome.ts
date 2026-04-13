@@ -2,6 +2,7 @@ import { treaty } from "@elysiajs/eden";
 import type { App } from "@server/app";
 import { useEffect, useRef, useState } from "react";
 import { createMetronomeEngine } from "../audio/createMetronomeEngine";
+import { PLAY_SCHEDULE_LEAD_MS } from "../domain/constants";
 import { clampBpm, normalizeBeats } from "../domain/guards";
 import { computeAlignedStart } from "../domain/playSchedule";
 
@@ -9,8 +10,6 @@ type UseMetronomeParams = {
   initialBpm: number;
   initialBeatsPerMeasure: number;
 };
-
-const SCHEDULE_LEAD_MS = 1000;
 
 const getServerOrigin = (): string =>
   window?.location?.origin ?? "http://localhost:4000";
@@ -282,7 +281,7 @@ export function useMetronome(params: UseMetronomeParams) {
       return;
     }
 
-    const at = Date.now() + SCHEDULE_LEAD_MS;
+    const at = Date.now() + PLAY_SCHEDULE_LEAD_MS;
     sendWs({
       type: "play-schedule",
       at,

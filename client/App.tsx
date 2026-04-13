@@ -1,3 +1,4 @@
+import { trim } from "es-toolkit/compat";
 import { useEffect, useState } from "react";
 import { MetronomeScreen } from "./features/metronome/components/MetronomeScreen";
 import {
@@ -57,7 +58,11 @@ export default function App() {
     if (!code) {
       return;
     }
-    connect(code);
+    const normalized = trim(code);
+    if (!normalized) {
+      return;
+    }
+    connect(normalized);
   };
 
   const handleExitRoom = () => {
