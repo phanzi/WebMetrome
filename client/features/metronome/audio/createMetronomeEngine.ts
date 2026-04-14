@@ -1,4 +1,4 @@
-import { clamp } from "es-toolkit/compat";
+import { clamp } from "es-toolkit";
 import {
   AUDIO_ACCENT_DURATION_SEC,
   AUDIO_ACCENT_FREQUENCY_HZ,
@@ -88,8 +88,8 @@ export function createMetronomeEngine(options: MetronomeEngineOptions) {
     }
 
     while (nextNoteTime < audioContext.currentTime + SCHEDULER_LOOKAHEAD_SEC) {
-      const isFirstBeat = beatCounter % beatsPerMeasure === 0;
       const beatIndex = beatCounter % beatsPerMeasure;
+      const isFirstBeat = beatIndex === 0;
       playSound(nextNoteTime, isFirstBeat);
       onBeat(beatIndex);
 
@@ -152,6 +152,7 @@ export function createMetronomeEngine(options: MetronomeEngineOptions) {
         cancelAnimationFrame(timerId);
         timerId = null;
       }
+
       onBeat(0);
     },
     isRunning(): boolean {
