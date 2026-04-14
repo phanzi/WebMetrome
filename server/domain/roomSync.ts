@@ -1,5 +1,6 @@
 import type { ResponseSchema } from "@server/app";
-import { inRange, isInteger, isNumber, isObject } from "es-toolkit/compat";
+import { inRange, isNumber } from "es-toolkit";
+import { isInteger, isObject } from "es-toolkit/compat";
 import { z } from "zod";
 import {
   ALLOWED_BEATS,

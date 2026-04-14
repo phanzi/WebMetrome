@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { noop } from "es-toolkit/compat";
+import { noop } from "es-toolkit";
 import { z } from "zod";
 import { startTestServer } from "../../fixtures/test-server";
 import {

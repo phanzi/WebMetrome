@@ -1,5 +1,4 @@
-import { delay } from "es-toolkit";
-import { pullAt } from "es-toolkit/compat";
+import { delay, pullAt } from "es-toolkit";
 import type { ZodType } from "zod";
 
 type QueuedWebSocket = WebSocket & {

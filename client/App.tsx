@@ -1,4 +1,4 @@
-import { trim } from "es-toolkit/compat";
+import { trim } from "es-toolkit";
 import { useCallback, useEffect, useState } from "react";
 import { MetronomeScreen } from "./features/metronome/components/MetronomeScreen";
 import {
