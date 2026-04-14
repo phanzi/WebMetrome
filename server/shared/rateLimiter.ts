@@ -1,4 +1,4 @@
-import { clamp, round } from "es-toolkit/compat";
+import { clamp, round } from "es-toolkit";
 
 export const MIN_CONTROL_INTERVAL_MS = 30;
 const MIN_ALLOWED_INTERVAL_MS = 1;

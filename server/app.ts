@@ -3,7 +3,7 @@ import { createRoomSyncService } from "./domain/roomSync";
 import {
   MIN_CONTROL_INTERVAL_MS,
   createRateLimiter,
-} from "./shared/controlRateLimit";
+} from "./shared/rateLimiter";
 
 export { MIN_CONTROL_INTERVAL_MS, createRateLimiter };
 
