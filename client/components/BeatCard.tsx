@@ -31,11 +31,10 @@ export function BeatCard(props: Props) {
         {ALLOWED_BEATS.map((b) => (
           <button
             className={cn(
-              "flex-1 cursor-pointer rounded-lg border px-0 py-2.5 font-bold transition",
+              "flex-1 cursor-pointer rounded-lg border px-0 py-2.5 font-bold transition disabled:cursor-not-allowed disabled:opacity-60",
               beats === b
                 ? "border-blue-500 bg-blue-500 text-white"
                 : "border-slate-300 bg-white text-slate-700",
-              disabled ? "cursor-not-allowed opacity-60" : "",
             )}
             key={b}
             onClick={() => onChange(b)}

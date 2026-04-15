@@ -133,7 +133,7 @@ export default function App() {
 
   return (
     <div className="mx-auto min-h-screen max-w-105 space-y-4 bg-slate-50 px-5 py-5 font-sans">
-      <header className="mb-5 flex items-center justify-between">
+      <header className="flex items-center justify-between">
         <h1 className="m-0 text-[1.2rem] font-bold text-slate-900">
           Sync Metronome
         </h1>
@@ -171,7 +171,7 @@ export default function App() {
         </div>
       </header>
 
-      <div className="flex items-center justify-center gap-2 rounded-[25px] border border-slate-200 bg-slate-100 px-4 py-4">
+      <div className="flex items-center justify-center gap-2 rounded-[18px] border border-slate-200 bg-slate-100 px-4 py-4">
         {range(0, state.beats).map((i) => (
           <BeatDot
             key={i}
@@ -207,13 +207,10 @@ export default function App() {
 
       <button
         className={cn(
-          "w-full rounded-[40px] border-none px-5 py-5 text-[1.4rem] font-bold text-white transition",
+          "w-full cursor-pointer rounded-full border-none px-5 py-5 text-[1.4rem] font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60",
           metronome.isPlaying
             ? "bg-red-500 hover:bg-red-600"
             : "bg-blue-500 hover:bg-blue-600",
-          canToggleMetronome
-            ? "cursor-pointer"
-            : "cursor-not-allowed opacity-60",
         )}
         onClick={toggleMetronome}
         disabled={!canToggleMetronome}
