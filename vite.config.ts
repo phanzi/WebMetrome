@@ -19,7 +19,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: join("out", "dist"),
+    outDir: join(process.cwd(), "out", "dist"),
     emptyOutDir: true,
   },
   resolve: {
