@@ -1,26 +1,6 @@
 import { Elysia, t } from "elysia";
-import { createRoomSyncService } from "./domain/roomSync";
-import {
-  MIN_CONTROL_INTERVAL_MS,
-  createRateLimiter,
-} from "./shared/rateLimiter";
-
-export { MIN_CONTROL_INTERVAL_MS, createRateLimiter };
-
-const toErrorMessage = (
-  code: "INVALID_ROOM" | "UNAUTHORIZED" | "INVALID_PAYLOAD" | "RATE_LIMIT",
-) => {
-  if (code === "INVALID_ROOM") {
-    return "방을 찾을 수 없습니다.";
-  }
-  if (code === "UNAUTHORIZED") {
-    return "변경 권한이 없습니다.";
-  }
-  if (code === "RATE_LIMIT") {
-    return "요청이 너무 빠릅니다.";
-  }
-  return "메시지 형식이 올바르지 않습니다.";
-};
+import { RoomService } from "./domain/roomService";
+import { createRateLimiter } from "./shared/rateLimiter";
 
 const querySchema = t.Object({
   id: t.Optional(t.String()),
@@ -36,7 +16,8 @@ const bodySchema = t.Union([
   }),
   t.Object({
     type: t.Literal("play-schedule"),
-    at: t.Number(),
+    // ms Unix timestamp
+    startedAt: t.Number(),
   }),
   t.Object({
     type: t.Literal("play-halt"),
@@ -46,17 +27,14 @@ const bodySchema = t.Union([
 const responseSchema = t.Union([
   t.Object({
     type: t.Literal("room-created"),
-    role: t.Literal("owner"),
     roomId: t.String(),
   }),
   t.Object({
     type: t.Literal("room-joined"),
-    role: t.Union([t.Literal("owner"), t.Literal("member")]),
     roomId: t.String(),
   }),
   t.Object({
     type: t.Literal("metronome-state"),
-    roomId: t.String(),
     metronome: t.Object({
       bpm: t.Number(),
       beats: t.Number(),
@@ -64,20 +42,27 @@ const responseSchema = t.Union([
   }),
   t.Object({
     type: t.Literal("play-schedule"),
-    roomId: t.String(),
-    at: t.Number(),
+    // ms Unix timestamp
+    startedAt: t.Number(),
   }),
   t.Object({
     type: t.Literal("play-halt"),
-    roomId: t.String(),
+  }),
+  t.Object({
+    type: t.Literal("promote-owner"),
   }),
   t.Object({
     type: t.Literal("error"),
     code: t.Union([
       t.Literal("INVALID_ROOM"),
       t.Literal("UNAUTHORIZED"),
+      t.Literal("ALREADY_CREATED"),
+      t.Literal("FAILED_TO_CREATE_ROOM_ID"),
       t.Literal("INVALID_PAYLOAD"),
       t.Literal("RATE_LIMIT"),
+      t.Literal("ALREADY_JOINED"),
+      t.Literal("INVALID_ROOM_ID"),
+      t.Literal("ROOM_NOT_FOUND"),
     ]),
     message: t.String(),
   }),
@@ -88,64 +73,52 @@ export type ResponseSchema = typeof responseSchema.static;
 export function createApp(options?: { now?: () => number }) {
   const getNow = options?.now ?? Date.now;
   const rateLimiter = createRateLimiter({ now: getNow });
-  const roomSync = createRoomSyncService({
-    now: options?.now,
-  });
+  const roomService = new RoomService<ResponseSchema>();
 
   return new Elysia().ws("/room", {
     query: querySchema,
     body: bodySchema,
     response: responseSchema,
     open(ws) {
-      roomSync.open(ws.id, (data) => {
-        ws.send(data);
-      });
-      console.log("새로운 기기 연결됨:", ws.id);
-
-      const requestedRoomId = ws.data.query.id;
-      if (!requestedRoomId) {
-        const created = roomSync.createRoom(ws.id);
-        if (!created.ok) {
+      const roomId = ws.data.query.id;
+      if (roomId) {
+        const joined = roomService.joinRoom(ws, roomId);
+        if (joined.success) {
+          ws.send({
+            type: "room-joined",
+            roomId: roomId,
+          });
+          ws.send({
+            type: "metronome-state",
+            metronome: joined.data.metronomeState,
+          });
+          if (joined.data.playScheduleSnap) {
+            ws.send({
+              type: "play-schedule",
+              startedAt: joined.data.playScheduleSnap.startedAt,
+            });
+          }
+        } else {
           ws.send({
             type: "error",
-            code: "INVALID_ROOM",
-            message: "방을 생성할 수 없습니다.",
+            code: joined.code,
+            message: joined.message,
           });
-          ws.close();
-          return;
         }
-
-        ws.send({
-          type: "room-created",
-          role: "owner",
-          roomId: created.roomId,
-        });
-        return;
-      }
-
-      const joined = roomSync.joinRoom(ws.id, requestedRoomId);
-      if (!joined.ok) {
-        ws.send({
-          type: "error",
-          code: joined.code,
-          message: toErrorMessage(joined.code),
-        });
-        ws.close();
-        return;
-      }
-
-      ws.send({
-        type: "room-joined",
-        roomId: joined.roomId,
-        role: joined.role,
-      });
-      ws.send({
-        type: "metronome-state",
-        roomId: joined.roomId,
-        metronome: joined.metronomeState,
-      });
-      if (joined.replayPlaySchedule) {
-        ws.send(joined.replayPlaySchedule);
+      } else {
+        const created = roomService.createRoom(ws);
+        if (created.success) {
+          ws.send({
+            type: "room-created",
+            roomId: created.data.id,
+          });
+        } else {
+          ws.send({
+            type: "error",
+            code: created.code,
+            message: created.message,
+          });
+        }
       }
     },
     message(ws, message) {
@@ -153,47 +126,82 @@ export function createApp(options?: { now?: () => number }) {
         ws.send({
           type: "error",
           code: "RATE_LIMIT",
-          message: toErrorMessage("RATE_LIMIT"),
+          message: "Too many requests",
         });
         return;
       }
 
       switch (message.type) {
         case "set-metronome": {
-          const updated = roomSync.replaceMetronomeState(
-            ws.id,
-            message.metronome,
-          );
-          if (!updated.ok) {
+          const set = roomService.setMetronomeState(ws.id, message.metronome);
+          if (!set.success) {
             ws.send({
               type: "error",
-              code: updated.code,
-              message: toErrorMessage(updated.code),
+              code: set.code,
+              message: set.message,
             });
+            return;
+          }
+          const broadcast = roomService.broadcast(ws.id, {
+            type: "metronome-state",
+            metronome: message.metronome,
+          });
+          if (!broadcast.success) {
+            ws.send({
+              type: "error",
+              code: broadcast.code,
+              message: broadcast.message,
+            });
+            return;
           }
           return;
         }
         case "play-schedule": {
-          const updated = roomSync.relayPlaySchedule(ws.id, {
-            at: message.at,
+          const schedule = roomService.schedulePlay(ws.id, {
+            startedAt: message.startedAt,
           });
-          if (!updated.ok) {
+          if (!schedule.success) {
             ws.send({
               type: "error",
-              code: updated.code,
-              message: toErrorMessage(updated.code),
+              code: schedule.code,
+              message: schedule.message,
             });
+            return;
+          }
+          const broadcast = roomService.broadcast(ws.id, {
+            type: "play-schedule",
+            startedAt: message.startedAt,
+          });
+          if (!broadcast.success) {
+            ws.send({
+              type: "error",
+              code: broadcast.code,
+              message: broadcast.message,
+            });
+            return;
           }
           return;
         }
         case "play-halt": {
-          const updated = roomSync.relayPlayHalt(ws.id);
-          if (!updated.ok) {
+          const halt = roomService.haltPlay(ws.id);
+          if (!halt.success) {
             ws.send({
               type: "error",
-              code: updated.code,
-              message: toErrorMessage(updated.code),
+              code: halt.code,
+              message: halt.message,
             });
+            return;
+          }
+          const broadcast = roomService.broadcast(ws.id, {
+            type: "play-halt",
+          });
+          if (!broadcast.success) {
+            ws.send({
+              type: "error",
+              code: broadcast.code,
+              message: broadcast.message,
+            });
+            return;
           }
           return;
         }
@@ -201,7 +209,14 @@ export function createApp(options?: { now?: () => number }) {
     },
     close(ws) {
       rateLimiter.clear(ws.id);
-      roomSync.close(ws.id);
+      const left = roomService.leaveRoom(ws.id);
+      if (left.success) {
+        if (left.data.type === "owner-changed") {
+          left.data.owner.send({
+            type: "promote-owner",
+          });
+        }
+      }
       console.log(`연결 종료: ${ws.id}`);
     },
   });

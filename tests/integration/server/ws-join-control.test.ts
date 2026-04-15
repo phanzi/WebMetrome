@@ -34,7 +34,7 @@ const metronomeStateSchema = z.object({
 const playScheduleSchema = z.object({
   type: z.literal("play-schedule"),
   roomId: z.string(),
-  at: z.number(),
+  startedAt: z.number(),
 });
 
 const playHaltSchema = z.object({
@@ -124,7 +124,7 @@ describe("WebSocket join/control", () => {
 
     sendJson(host, {
       type: "play-schedule",
-      at: Date.now() + 60_000,
+      startedAt: Date.now() + 60_000,
     });
     await waitForMessage(host, playScheduleSchema);
 
@@ -146,14 +146,14 @@ describe("WebSocket join/control", () => {
     sockets.push(host);
     const created = await waitForMessage(host, roomCreatedSchema);
 
-    const at = Date.now() + 60_000;
+    const startedAt = Date.now() + 60_000;
     sendJson(host, {
       type: "play-schedule",
-      at,
+      startedAt,
     });
     const hostScheduled = await waitForMessage(host, playScheduleSchema);
     expect(hostScheduled.roomId).toBe(created.roomId);
-    expect(hostScheduled.at).toBe(at);
+    expect(hostScheduled.startedAt).toBe(startedAt);
 
     const lateMember = await connectWebSocket(
       `ws://localhost:${port}/room?id=${created.roomId}`,
@@ -174,7 +174,7 @@ describe("WebSocket join/control", () => {
       playScheduleSchema,
     );
     expect(replayedSchedule.roomId).toBe(created.roomId);
-    expect(replayedSchedule.at).toBe(at);
+    expect(replayedSchedule.startedAt).toBe(startedAt);
   });
 
   it("does not replay play-schedule for late join after play-halt", async () => {
@@ -187,7 +187,7 @@ describe("WebSocket join/control", () => {
 
     sendJson(host, {
       type: "play-schedule",
-      at: Date.now() + 60_000,
+      startedAt: Date.now() + 60_000,
     });
     await waitForMessage(host, playScheduleSchema);
 

@@ -17,17 +17,17 @@ export function createRateLimiter(options: {
   const lastByConnection = new Map<string, number>();
 
   return {
-    allow(connectionId: string): boolean {
+    allow(wsId: string): boolean {
       const now = options.now();
-      const prev = lastByConnection.get(connectionId) ?? 0;
+      const prev = lastByConnection.get(wsId) ?? 0;
       if (now - prev < intervalMs) {
         return false;
       }
-      lastByConnection.set(connectionId, now);
+      lastByConnection.set(wsId, now);
       return true;
     },
-    clear(connectionId: string): void {
-      lastByConnection.delete(connectionId);
+    clear(wsId: string): void {
+      lastByConnection.delete(wsId);
     },
   };
 }

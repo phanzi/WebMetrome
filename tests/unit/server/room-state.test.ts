@@ -65,13 +65,13 @@ describe("createRoomSyncService room state", () => {
     }
     service.joinRoom("member", created.roomId);
 
-    const at = nowMs + 5000;
-    const scheduled = service.relayPlaySchedule("host", { at });
+    const startedAt = nowMs + 5000;
+    const scheduled = service.relayPlaySchedule("host", { startedAt });
     expect(scheduled.ok).toBe(true);
     const schedulePayload = {
       type: "play-schedule" as const,
       roomId: created.roomId,
-      at,
+      startedAt,
     };
     expect(hostSender).toHaveBeenNthCalledWith(1, schedulePayload);
     expect(memberSender).toHaveBeenNthCalledWith(1, schedulePayload);
@@ -103,8 +103,8 @@ describe("createRoomSyncService room state", () => {
     }
     service.joinRoom("member", created.roomId);
 
-    const at = nowMs + 5000;
-    const scheduled = service.relayPlaySchedule("host", { at });
+    const startedAt = nowMs + 5000;
+    const scheduled = service.relayPlaySchedule("host", { startedAt });
     expect(scheduled.ok).toBe(true);
 
     const lateJoined = service.joinRoom("late-member", created.roomId);
@@ -113,7 +113,7 @@ describe("createRoomSyncService room state", () => {
       expect(lateJoined.replayPlaySchedule).toEqual({
         type: "play-schedule",
         roomId: created.roomId,
-        at,
+        startedAt,
       });
     }
 
@@ -140,21 +140,21 @@ describe("createRoomSyncService room state", () => {
 
     const lowerBoundary = nowMs - PLAY_SCHEDULE_PAST_TOLERANCE_MS;
     const upperBoundary = nowMs + PLAY_SCHEDULE_FUTURE_LIMIT_MS;
-    expect(service.relayPlaySchedule("host", { at: lowerBoundary }).ok).toBe(
-      true,
-    );
-    expect(service.relayPlaySchedule("host", { at: upperBoundary }).ok).toBe(
-      true,
-    );
+    expect(
+      service.relayPlaySchedule("host", { startedAt: lowerBoundary }).ok,
+    ).toBe(true);
+    expect(
+      service.relayPlaySchedule("host", { startedAt: upperBoundary }).ok,
+    ).toBe(true);
     const beforeLower = service.relayPlaySchedule("host", {
-      at: lowerBoundary - 1,
+      startedAt: lowerBoundary - 1,
     });
     expect(beforeLower.ok).toBe(false);
     if (!beforeLower.ok) {
       expect(beforeLower.code).toBe("INVALID_PAYLOAD");
     }
     const afterUpper = service.relayPlaySchedule("host", {
-      at: upperBoundary + 1,
+      startedAt: upperBoundary + 1,
     });
     expect(afterUpper.ok).toBe(false);
     if (!afterUpper.ok) {

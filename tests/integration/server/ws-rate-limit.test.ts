@@ -32,7 +32,7 @@ const rateLimitErrorSchema = z.object({
 const playScheduleSchema = z.object({
   type: z.literal("play-schedule"),
   roomId: z.string(),
-  at: z.number(),
+  startedAt: z.number(),
 });
 
 describe("WebSocket rate limit", () => {
@@ -94,7 +94,7 @@ describe("WebSocket rate limit", () => {
 
     sendJson(host, {
       type: "play-schedule",
-      at: fixedNow + 60_000,
+      startedAt: fixedNow + 60_000,
     });
 
     const errorMessage = await waitForMessage(host, rateLimitErrorSchema);
@@ -115,7 +115,7 @@ describe("WebSocket rate limit", () => {
 
     sendJson(host, {
       type: "play-schedule",
-      at: fixedNow + 60_000,
+      startedAt: fixedNow + 60_000,
     });
     await waitForMessage(host, playScheduleSchema);
 
