@@ -34,7 +34,9 @@ export function BpmCard(props: Props) {
         </span>
         <input
           className="w-20 rounded-lg border border-slate-300 text-center font-bold text-slate-900"
-          type="number"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
           value={displayBpm}
           disabled={disabled}
           onChange={handleBpmChangeWith()}

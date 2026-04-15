@@ -1,15 +1,10 @@
 import { range } from "es-toolkit";
 import { useState } from "react";
+import { BeatCard } from "./components/BeatCard";
 import { BeatDot } from "./components/BeatDot";
 import { BpmCard } from "./components/BpmCard";
-import { Card } from "./components/Card";
 import { ViewLatencyOffsetCard } from "./components/ViewLatencyCard";
-import {
-  ALLOWED_BEATS,
-  DEFAULT_BEATS,
-  DEFAULT_BPM,
-  STORAGE_KEYS,
-} from "./constants";
+import { DEFAULT_BEATS, DEFAULT_BPM, STORAGE_KEYS } from "./constants";
 import { useMetronomeController } from "./hooks/useMetronomeController";
 import { useServerMetronome } from "./hooks/useServerMetronome";
 import { cn } from "./lib/utils";
@@ -160,7 +155,7 @@ export default function App() {
         </div>
       </header>
 
-      <div className="mb-4 flex min-h-27.5 items-center justify-center gap-2 rounded-[25px] border border-slate-200 bg-slate-100">
+      <div className="flex items-center justify-center gap-2 rounded-[25px] border border-slate-200 bg-slate-100 px-4 py-4">
         {range(0, state.beats).map((i) => (
           <BeatDot
             key={i}
@@ -176,31 +171,11 @@ export default function App() {
         disabled={!canEditMetronomeSettings}
       />
 
-      <Card>
-        <p className="m-0 text-sm font-semibold text-slate-600">
-          박자 (Beats): <b>{state.beats}</b>
-        </p>
-        <div className="mt-2.5 flex gap-2">
-          {ALLOWED_BEATS.map((b) => (
-            <button
-              className={cn(
-                "flex-1 rounded-lg border px-0 py-2.5 font-bold transition",
-                state.beats === b
-                  ? "border-blue-500 bg-blue-500 text-white"
-                  : "border-slate-300 bg-white text-slate-700",
-                canEditMetronomeSettings
-                  ? "cursor-pointer"
-                  : "cursor-not-allowed opacity-60",
-              )}
-              key={b}
-              onClick={() => handleBeatsChange(b)}
-              disabled={!canEditMetronomeSettings}
-            >
-              {b}
-            </button>
-          ))}
-        </div>
-      </Card>
+      <BeatCard
+        beats={state.beats}
+        onChange={handleBeatsChange}
+        disabled={!canEditMetronomeSettings}
+      />
 
       <ViewLatencyOffsetCard
         offset={offset}
