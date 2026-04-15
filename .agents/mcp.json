@@ -1,12 +1,22 @@
 {
   "mcpServers": {
-    "mcp-hub": {
-      "command": "npx",
-      "args": ["mcp-hub-mcp", "--config-file", "./.cursor/mcp-hub.json"]
+    "context7": {
+      "command": "bunx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
+    },
+    "better-auth": {
+      "url": "https://mcp.inkeep.com/better-auth/mcp"
     },
     "playwright": {
-      "command": "npx",
+      "command": "bunx",
       "args": ["@playwright/mcp@latest"]
+    },
+    "typescript-lsp": {
+      "command": "bunx",
+      "args": [
+        "-y",
+        "@anthropic/typescript-mcp-server"
+      ]
     }
   }
 }

@@ -15,26 +15,10 @@ plan을 작성할 때 **작업이 모두 끝난 뒤** 반드시 검증 단계를
 
 ## 검증 규칙
 
-### 2) format
+다음의 커맨드를 실행
 
 ```sh
-pnpm run format
-```
-
-- format 실패시 건너뜀
-
-### 3) lint
-
-```sh
-pnpm run lint
-```
-
-- 린트 실행 후 발생하는 오류를 수정
-
-### 4) build
-
-```sh
-pnpm run build
+bun run format && bun run lint && bun run tsc && bun run test && bun run build
 ```
 
 - 빌드 실행 후 타입에러나 빌드에러가 발생하면 다음과 같이 처리:
