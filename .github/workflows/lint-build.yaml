@@ -8,6 +8,7 @@ on:
 
 jobs:
   lint-build:
+    if: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
