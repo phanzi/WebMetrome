@@ -9,4 +9,5 @@ export const PLAY_SCHEDULE_LEAD_MS = 0;
 export const STORAGE_KEYS = {
   bpm: "ms-bpm",
   beats: "ms-beats",
+  offset: "ms-offset",
 };

@@ -6,7 +6,7 @@ export type MetronomeState = {
   beats: number;
 };
 
-export function useMetronomeController() {
+export function useMetronomeController(offsetMs: number) {
   const [beatIndex, setBeatIndex] = useState(-1);
   const beatCounter = useRef(-1);
   const nextNoteSec = useRef(0);
@@ -20,7 +20,7 @@ export function useMetronomeController() {
       scheduleSound(
         ctx,
         isFirstBeat ? "ACCENT" : "REGULAR",
-        nextNoteSec.current,
+        nextNoteSec.current + offsetMs / 1000,
       );
 
       nextNoteSec.current += 60.0 / state.bpm;

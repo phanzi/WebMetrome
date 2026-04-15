@@ -3,6 +3,7 @@ import { useState } from "react";
 import { BeatDot } from "./components/BeatDot";
 import { BpmCard } from "./components/BpmCard";
 import { Card } from "./components/Card";
+import { ViewLatencyOffsetCard } from "./components/ViewLatencyCard";
 import {
   ALLOWED_BEATS,
   DEFAULT_BEATS,
@@ -17,6 +18,7 @@ export default function App() {
   /**
    * Metronome state
    */
+
   const [state, setState] = useState({
     bpm: localStorage.getItem(STORAGE_KEYS.bpm)
       ? parseInt(localStorage.getItem(STORAGE_KEYS.bpm) ?? "")
@@ -51,11 +53,16 @@ export default function App() {
       });
     }
   };
+  const [offset, setOffset] = useState(0);
+  const handleOffsetChange = (offset: number) => {
+    setOffset(offset);
+    localStorage.setItem(STORAGE_KEYS.offset, offset.toString());
+  };
 
   /**
    * Metronome playing state
    */
-  const metronome = useMetronomeController();
+  const metronome = useMetronomeController(offset);
   const toggleMetronome = () => {
     if (metronome.isPlaying) {
       metronome.stop();
@@ -194,6 +201,12 @@ export default function App() {
           ))}
         </div>
       </Card>
+
+      <ViewLatencyOffsetCard
+        offset={offset}
+        onChange={handleOffsetChange}
+        disabled={metronome.isPlaying}
+      />
 
       <button
         className={cn(
