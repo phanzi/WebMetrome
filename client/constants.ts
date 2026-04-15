@@ -10,4 +10,5 @@ export const STORAGE_KEYS = {
   bpm: "ms-bpm",
   beats: "ms-beats",
   offset: "ms-offset",
+  savedStates: "ms-saved-states",
 };

@@ -3,9 +3,13 @@ import { useState } from "react";
 import { BeatCard } from "./components/BeatCard";
 import { BeatDot } from "./components/BeatDot";
 import { BpmCard } from "./components/BpmCard";
+import { SavedMetronomeStatesCard } from "./components/SavedMetronomeStatesCard";
 import { ViewLatencyOffsetCard } from "./components/ViewLatencyCard";
 import { DEFAULT_BEATS, DEFAULT_BPM, STORAGE_KEYS } from "./constants";
-import { useMetronomeController } from "./hooks/useMetronomeController";
+import {
+  MetronomeState,
+  useMetronomeController,
+} from "./hooks/useMetronomeController";
 import { useServerMetronome } from "./hooks/useServerMetronome";
 import { cn } from "./lib/utils";
 
@@ -22,6 +26,8 @@ export default function App() {
       ? parseInt(localStorage.getItem(STORAGE_KEYS.beats) ?? "")
       : DEFAULT_BEATS,
   });
+  const [offset, setOffset] = useState(0);
+
   const handleBpmChange = (bpm: number) => {
     setState((prev) => ({ ...prev, bpm }));
     localStorage.setItem(STORAGE_KEYS.bpm, bpm.toString());
@@ -48,10 +54,20 @@ export default function App() {
       });
     }
   };
-  const [offset, setOffset] = useState(0);
   const handleOffsetChange = (offset: number) => {
     setOffset(offset);
     localStorage.setItem(STORAGE_KEYS.offset, offset.toString());
+  };
+  const handleLoadState = (state: MetronomeState) => {
+    setState(state);
+    localStorage.setItem(STORAGE_KEYS.bpm, state.bpm.toString());
+    localStorage.setItem(STORAGE_KEYS.beats, state.beats.toString());
+    if (server.state === "online" && server.role === "owner") {
+      server.send({
+        type: "set-metronome",
+        metronome: state,
+      });
+    }
   };
 
   /**
@@ -181,6 +197,12 @@ export default function App() {
         offset={offset}
         onChange={handleOffsetChange}
         disabled={metronome.isPlaying}
+      />
+
+      <SavedMetronomeStatesCard
+        state={state}
+        onLoad={handleLoadState}
+        disabled={!canEditMetronomeSettings}
       />
 
       <button
