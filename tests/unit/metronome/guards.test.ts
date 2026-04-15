@@ -1,10 +1,10 @@
-import { DEFAULT_BPM } from "@/features/metronome/domain/constants";
+import { DEFAULT_BPM } from "@/constants";
 import {
   clampBpm,
   normalizeBeats,
   readStoredNumber,
   sanitizeInitialBpm,
-} from "@/features/metronome/domain/guards";
+} from "@/guards";
 import { describe, expect, it } from "bun:test";
 
 describe("metronome guards", () => {

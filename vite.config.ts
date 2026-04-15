@@ -12,7 +12,7 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
     hmr: {
-      protocol: "ws",
+      protocol: "http",
       host: "localhost",
       port: 3000,
       clientPort: 3000,
@@ -23,9 +23,9 @@ export default defineConfig({
     emptyOutDir: true,
   },
   resolve: {
-    alias: [
-      { find: "@", replacement: "client" },
-      { find: "@server", replacement: "server" },
-    ],
+    alias: {
+      "@": join(__dirname, "client"),
+      "@server": join(__dirname, "server"),
+    },
   },
 });
