@@ -1,7 +1,10 @@
-import { createRateLimiter, MIN_CONTROL_INTERVAL_MS } from "@server/app";
+import {
+  createRateLimiter,
+  MIN_CONTROL_INTERVAL_MS,
+} from "@server/shared/rateLimiter";
 import { describe, expect, it } from "bun:test";
 
-describe("createControlRateLimiter", () => {
+describe("createRateLimiter", () => {
   it("allows the first control per connection when last is zero", () => {
     const limiter = createRateLimiter({
       now: () => 1000,

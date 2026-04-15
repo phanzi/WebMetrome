@@ -1,4 +1,4 @@
-import { MIN_CONTROL_INTERVAL_MS } from "@server/app";
+import { MIN_CONTROL_INTERVAL_MS } from "@server/shared/rateLimiter";
 import { afterEach, describe, expect, it } from "bun:test";
 import { delay, noop } from "es-toolkit";
 import { z } from "zod";
@@ -13,18 +13,15 @@ import {
 const roomCreatedSchema = z.object({
   type: z.literal("room-created"),
   roomId: z.string(),
-  role: z.literal("owner"),
 });
 
 const roomJoinedSchema = z.object({
   type: z.literal("room-joined"),
   roomId: z.string(),
-  role: z.union([z.literal("owner"), z.literal("member")]),
 });
 
 const metronomeStateSchema = z.object({
   type: z.literal("metronome-state"),
-  roomId: z.string(),
   metronome: z.object({
     bpm: z.number(),
     beats: z.number(),
@@ -33,13 +30,11 @@ const metronomeStateSchema = z.object({
 
 const playScheduleSchema = z.object({
   type: z.literal("play-schedule"),
-  roomId: z.string(),
   startedAt: z.number(),
 });
 
 const playHaltSchema = z.object({
   type: z.literal("play-halt"),
-  roomId: z.string(),
 });
 
 const errorSchema = z.object({
@@ -71,8 +66,7 @@ describe("WebSocket join/control", () => {
       type: "set-metronome",
       metronome: { bpm: 140, beats: 4 },
     });
-    const hostMetronome = await waitForMessage(host, metronomeStateSchema);
-    expect(hostMetronome.metronome).toEqual({ bpm: 140, beats: 4 });
+    await expectNoMessage(host);
 
     const member = await connectWebSocket(
       `ws://localhost:${port}/room?id=${created.roomId}`,
@@ -120,13 +114,21 @@ describe("WebSocket join/control", () => {
 
     const host = await connectWebSocket(`ws://localhost:${port}/room`);
     sockets.push(host);
-    await waitForMessage(host, roomCreatedSchema);
+    const created = await waitForMessage(host, roomCreatedSchema);
+    const member = await connectWebSocket(
+      `ws://localhost:${port}/room?id=${created.roomId}`,
+    );
+    sockets.push(member);
+    await waitForMessage(member, roomJoinedSchema);
+    await waitForMessage(member, metronomeStateSchema);
 
+    const startedAt = Date.now() + 60_000;
     sendJson(host, {
       type: "play-schedule",
-      startedAt: Date.now() + 60_000,
+      startedAt,
     });
-    await waitForMessage(host, playScheduleSchema);
+    const scheduled = await waitForMessage(member, playScheduleSchema);
+    expect(scheduled.startedAt).toBe(startedAt);
 
     await delay(MIN_CONTROL_INTERVAL_MS + 5);
 
@@ -134,7 +136,7 @@ describe("WebSocket join/control", () => {
       type: "set-metronome",
       metronome: { bpm: 150, beats: 4 },
     });
-    const updated = await waitForMessage(host, metronomeStateSchema);
+    const updated = await waitForMessage(member, metronomeStateSchema);
     expect(updated.metronome).toEqual({ bpm: 150, beats: 4 });
   });
 
@@ -151,9 +153,7 @@ describe("WebSocket join/control", () => {
       type: "play-schedule",
       startedAt,
     });
-    const hostScheduled = await waitForMessage(host, playScheduleSchema);
-    expect(hostScheduled.roomId).toBe(created.roomId);
-    expect(hostScheduled.startedAt).toBe(startedAt);
+    await expectNoMessage(host);
 
     const lateMember = await connectWebSocket(
       `ws://localhost:${port}/room?id=${created.roomId}`,
@@ -167,13 +167,12 @@ describe("WebSocket join/control", () => {
       lateMember,
       metronomeStateSchema,
     );
-    expect(metronomeState.roomId).toBe(created.roomId);
+    expect(metronomeState.metronome).toEqual({ bpm: 120, beats: 4 });
 
     const replayedSchedule = await waitForMessage(
       lateMember,
       playScheduleSchema,
     );
-    expect(replayedSchedule.roomId).toBe(created.roomId);
     expect(replayedSchedule.startedAt).toBe(startedAt);
   });
 
@@ -184,17 +183,23 @@ describe("WebSocket join/control", () => {
     const host = await connectWebSocket(`ws://localhost:${port}/room`);
     sockets.push(host);
     const created = await waitForMessage(host, roomCreatedSchema);
+    const member = await connectWebSocket(
+      `ws://localhost:${port}/room?id=${created.roomId}`,
+    );
+    sockets.push(member);
+    await waitForMessage(member, roomJoinedSchema);
+    await waitForMessage(member, metronomeStateSchema);
 
     sendJson(host, {
       type: "play-schedule",
       startedAt: Date.now() + 60_000,
     });
-    await waitForMessage(host, playScheduleSchema);
+    await waitForMessage(member, playScheduleSchema);
 
     await delay(MIN_CONTROL_INTERVAL_MS + 5);
     sendJson(host, { type: "play-halt" });
-    const halted = await waitForMessage(host, playHaltSchema);
-    expect(halted.roomId).toBe(created.roomId);
+    const halted = await waitForMessage(member, playHaltSchema);
+    expect(halted.type).toBe("play-halt");
 
     const lateMember = await connectWebSocket(
       `ws://localhost:${port}/room?id=${created.roomId}`,
@@ -208,8 +213,8 @@ describe("WebSocket join/control", () => {
       lateMember,
       metronomeStateSchema,
     );
-    expect(metronomeState.roomId).toBe(created.roomId);
+    expect(metronomeState.metronome).toEqual({ bpm: 120, beats: 4 });
 
-    await expectNoMessage(lateMember, MIN_CONTROL_INTERVAL_MS + 120);
+    await expectNoMessage(lateMember, 300);
   });
 });

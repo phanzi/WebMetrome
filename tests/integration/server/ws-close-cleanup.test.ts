@@ -60,7 +60,7 @@ describe("WebSocket close cleanup", () => {
     await waitForMessage(member, metronomeStateSchema);
 
     member.close();
-    await delay(20);
+    await delay(80);
 
     sendJson(host, {
       type: "set-metronome",
@@ -69,7 +69,7 @@ describe("WebSocket close cleanup", () => {
         beats: 4,
       },
     });
-    await waitForMessage(host, metronomeStateSchema);
+    await expectNoMessage(host);
 
     const replacementMember = await connectWebSocket(
       `ws://localhost:${port}/room?id=${created.roomId}`,
@@ -92,14 +92,14 @@ describe("WebSocket close cleanup", () => {
     sockets.push(host);
     const created = await waitForMessage(host, roomCreatedSchema);
     host.close();
-    await delay(20);
+    await delay(80);
 
     const member = await connectWebSocket(
       `ws://localhost:${port}/room?id=${created.roomId}`,
     );
     sockets.push(member);
     const error = await waitForMessage(member, errorSchema);
-    expect(error.code).toBe("INVALID_ROOM");
+    expect(error.code).toBe("ROOM_NOT_FOUND");
     await expectNoMessage(member);
   });
 });

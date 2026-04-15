@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, it } from "bun:test";
 import { noop } from "es-toolkit";
 import { z } from "zod";
 import { startTestServer } from "../../fixtures/test-server";
@@ -11,28 +11,12 @@ import {
 const roomCreatedSchema = z.object({
   type: z.literal("room-created"),
   roomId: z.string(),
-  role: z.literal("owner"),
-});
-
-const metronomeStateSchema = z.object({
-  type: z.literal("metronome-state"),
-  roomId: z.string(),
-  metronome: z.object({
-    bpm: z.number(),
-    beats: z.number(),
-  }),
 });
 
 const rateLimitErrorSchema = z.object({
   type: z.literal("error"),
   code: z.literal("RATE_LIMIT"),
-  message: z.literal("요청이 너무 빠릅니다."),
-});
-
-const playScheduleSchema = z.object({
-  type: z.literal("play-schedule"),
-  roomId: z.string(),
-  startedAt: z.number(),
+  message: z.literal("Too many requests"),
 });
 
 describe("WebSocket rate limit", () => {
@@ -63,15 +47,13 @@ describe("WebSocket rate limit", () => {
       type: "set-metronome",
       metronome: { bpm: 120, beats: 4 },
     });
-    await waitForMessage(host, metronomeStateSchema);
 
     sendJson(host, {
       type: "set-metronome",
       metronome: { bpm: 121, beats: 4 },
     });
 
-    const errorMessage = await waitForMessage(host, rateLimitErrorSchema);
-    expect(errorMessage.code).toBe("RATE_LIMIT");
+    await waitForMessage(host, rateLimitErrorSchema);
   });
 
   it("returns RATE_LIMIT when play-schedule follows set-metronome at same server time", async () => {
@@ -90,15 +72,13 @@ describe("WebSocket rate limit", () => {
       type: "set-metronome",
       metronome: { bpm: 120, beats: 4 },
     });
-    await waitForMessage(host, metronomeStateSchema);
 
     sendJson(host, {
       type: "play-schedule",
       startedAt: fixedNow + 60_000,
     });
 
-    const errorMessage = await waitForMessage(host, rateLimitErrorSchema);
-    expect(errorMessage.code).toBe("RATE_LIMIT");
+    await waitForMessage(host, rateLimitErrorSchema);
   });
 
   it("returns RATE_LIMIT when set-metronome follows play-schedule at same server time", async () => {
@@ -117,14 +97,12 @@ describe("WebSocket rate limit", () => {
       type: "play-schedule",
       startedAt: fixedNow + 60_000,
     });
-    await waitForMessage(host, playScheduleSchema);
 
     sendJson(host, {
       type: "set-metronome",
       metronome: { bpm: 150, beats: 4 },
     });
 
-    const errorMessage = await waitForMessage(host, rateLimitErrorSchema);
-    expect(errorMessage.code).toBe("RATE_LIMIT");
+    await waitForMessage(host, rateLimitErrorSchema);
   });
 });

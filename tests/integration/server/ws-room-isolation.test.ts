@@ -21,7 +21,6 @@ const roomJoinedSchema = z.object({
 
 const metronomeStateSchema = z.object({
   type: z.literal("metronome-state"),
-  roomId: z.string(),
   metronome: z.object({
     bpm: z.number(),
     beats: z.number(),
@@ -73,6 +72,7 @@ describe("WebSocket room isolation", () => {
 
     const roomMessage = await waitForMessage(memberA, metronomeStateSchema);
     expect(roomMessage.metronome.bpm).toBe(128);
+    await expectNoMessage(otherHost);
     await expectNoMessage(memberB);
   });
 });
