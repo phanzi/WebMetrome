@@ -1,7 +1,9 @@
 import { range } from "es-toolkit";
+import { CopyIcon, MoonIcon, QrCodeIcon, SunIcon } from "lucide-react";
 import { BeatCard } from "./components/BeatCard";
 import { BeatDot } from "./components/BeatDot";
 import { BpmCard } from "./components/BpmCard";
+import { Card, CardBody } from "./components/Card";
 import { SavedMetronomeStatesCard } from "./components/SavedMetronomeStatesCard";
 import { ViewLatencyOffsetCard } from "./components/ViewLatencyCard";
 import { metronome } from "./hooks/metronome";
@@ -26,6 +28,11 @@ export default function App() {
   const [state] = useAtom(room.state);
   const [roomId] = useAtom(room.id);
 
+  /**
+   * extra state
+   */
+  // NOTHING HERE
+
   const handleJoinRoom = () => {
     const roomId = prompt("Enter room ID");
     if (!roomId) {
@@ -33,58 +40,116 @@ export default function App() {
     }
     room.connect(roomId);
   };
+  const togglePlay = () => {
+    if (isPlaying) {
+      metronome.stop();
+    } else {
+      metronome.play();
+    }
+  };
 
   const editDisabled = isPlaying || (state === "online" && role !== "owner");
 
   return (
-    <div className="mx-auto min-h-screen max-w-105 space-y-4 bg-slate-50 px-5 py-5 font-sans">
-      <header className="flex items-center justify-between">
-        <h1 className="m-0 text-[1.2rem] font-bold text-slate-900">
-          Sync Metronome
-        </h1>
-        <div className="flex gap-2">
-          {state !== "online" ? (
-            <>
-              <button
-                className="rounded-lg bg-slate-700 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={handleJoinRoom}
-                disabled={state === "connecting"}
-              >
-                {state === "connecting" ? "CONNECTING..." : "JOIN"}
-              </button>
-              <button
-                className="rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={() => room.connect()}
-                disabled={state === "connecting"}
-              >
-                SHARE
-              </button>
-            </>
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className="rounded-md bg-emerald-500 px-3 py-1.5 text-[0.75rem] font-bold text-white">
-                {role === "owner" ? "HOST" : "MEMBER"}: {roomId}
-              </div>
-              <button
-                className="rounded-md bg-red-500 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600"
-                onClick={() => room.leave()}
-              >
-                EXIT
-              </button>
-            </div>
-          )}
-        </div>
+    <div className="mx-auto min-h-screen max-w-md space-y-4 px-5 py-5 font-sans">
+      <header className="flex items-center justify-between px-4">
+        <h1 className="text-2xl font-bold">Sync Metronome</h1>
+        {/* TODO: 다크 모드 토글 기능 추가 */}
+        <label className="swap btn size-8">
+          <input type="checkbox" />
+          <SunIcon className="swap-on" />
+          <MoonIcon className="swap-off" />
+        </label>
       </header>
 
-      <div className="flex items-center justify-center gap-2 rounded-[18px] border border-slate-200 bg-slate-100 px-4 py-4">
-        {range(0, beats).map((i) => (
-          <BeatDot
-            key={i}
-            variant={i === 0 ? "accent" : "regular"}
-            state={beatIndex === i ? "active" : "inactive"}
-          />
-        ))}
-      </div>
+      <Card className="sticky top-4 z-10 flex-row shadow-lg">
+        <div className="flex w-full p-4">
+          <BeatDot className="w-0 border-0 outline-0" variant="accent" />
+          <div
+            className={cn(
+              "flex w-full items-center justify-center gap-2",
+              beats > 10 && "gap-1.5",
+              beats > 20 && "gap-1",
+              beats > 40 && "gap-0.5",
+            )}
+          >
+            {range(0, beats).map((i) => (
+              <BeatDot
+                key={i}
+                variant={i === 0 ? "accent" : "regular"}
+                state={beatIndex === i ? "active" : "inactive"}
+              />
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <CardBody className="gap-1">
+          <h2 className="card-title justify-center">
+            Remote Control{" "}
+            {state === "online" ? (
+              <>
+                (
+                <span className="text-primary">
+                  {role === "owner" ? "HOST" : "MEMBER"}
+                </span>
+                )
+              </>
+            ) : null}
+          </h2>
+          {/* <div className="text-center text-4xl font-normal">{roomId}</div> */}
+          {state === "online" ? (
+            <div className="text-center">
+              <input
+                className="input input-ghost h-12 text-center text-4xl"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={roomId ?? ""}
+              />
+            </div>
+          ) : null}
+          <div className="text-center">
+            {state === "online" ? (
+              <div className="join mt-2 w-72 max-w-full justify-center">
+                {/* TODO: roomId 복사 및 복사 성공 toast 표시 */}
+                <button className="join-item btn bg-base-100 flex-1 p-0">
+                  <CopyIcon className="size-5" />
+                </button>
+                <button
+                  className="join-item btn bg-base-100 text-md flex-2 p-0"
+                  onClick={() => room.leave()}
+                >
+                  EXIT
+                </button>
+                {/* TODO: QR 코드 생성 및 modal 표시 */}
+                <button className="join-item btn bg-base-100 flex-1 p-0">
+                  <QrCodeIcon className="size-5" />
+                </button>
+              </div>
+            ) : (
+              <div className="join mt-1 w-72 max-w-full justify-center">
+                {/* TODO: join modal 추가 */}
+                <button
+                  className="btn btn-md btn-neutral join-item flex-1"
+                  onClick={handleJoinRoom}
+                  disabled={state === "connecting"}
+                >
+                  JOIN
+                </button>
+                <button
+                  className="btn btn-md btn-primary join-item flex-1"
+                  onClick={() => room.connect()}
+                  disabled={state === "connecting"}
+                >
+                  SHARE
+                </button>
+              </div>
+            )}
+          </div>
+        </CardBody>
+      </Card>
 
       <BpmCard bpm={bpm} onChange={setBpm} disabled={editDisabled} />
       <BeatCard beats={beats} onChange={setBeats} disabled={editDisabled} />
@@ -100,18 +165,10 @@ export default function App() {
 
       <button
         className={cn(
-          "w-full cursor-pointer rounded-full border-none px-5 py-5 text-[1.4rem] font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60",
-          isPlaying
-            ? "bg-red-500 hover:bg-red-600"
-            : "bg-blue-500 hover:bg-blue-600",
+          "btn btn-xl sticky bottom-4 w-full",
+          isPlaying ? "btn-warning" : "btn-primary",
         )}
-        onClick={() => {
-          if (isPlaying) {
-            metronome.stop();
-          } else {
-            metronome.play();
-          }
-        }}
+        onClick={togglePlay}
         disabled={state === "online" && role !== "owner"}
       >
         {isPlaying ? "STOP" : "START"}
