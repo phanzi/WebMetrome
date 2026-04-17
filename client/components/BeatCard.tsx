@@ -1,49 +1,50 @@
 import { ALLOWED_BEATS } from "@/constants";
 import { cn } from "@/lib/utils";
-import { Card } from "./Card";
+import { Card, CardBody } from "./Card";
 
 type Props = {
   beats: number;
   onChange: (beats: number) => void;
   disabled?: boolean;
+  className?: string;
 };
 
 export function BeatCard(props: Props) {
-  const { beats, onChange, disabled = false } = props;
+  const { beats, onChange, disabled = false, className = "" } = props;
 
   return (
-    <Card>
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-slate-600">
-          박자 (Beats): <b>{beats}</b>
-        </span>
-        <input
-          className="w-20 rounded-lg border border-slate-300 text-center font-bold text-slate-900"
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          value={beats}
-          disabled={disabled}
-          onChange={(e) => onChange(parseInt(e.target.value) || 0)}
-        />
-      </div>
-      <div className="mt-2.5 flex gap-2">
-        {ALLOWED_BEATS.map((b) => (
-          <button
-            className={cn(
-              "flex-1 cursor-pointer rounded-lg border px-0 py-2.5 font-bold transition disabled:cursor-not-allowed disabled:opacity-60",
-              beats === b
-                ? "border-blue-500 bg-blue-500 text-white"
-                : "border-slate-300 bg-white text-slate-700",
-            )}
-            key={b}
-            onClick={() => onChange(b)}
+    <Card className={className}>
+      <CardBody>
+        <h2 className="card-title justify-center">Beats (박자)</h2>
+        <div className="text-center">
+          <input
+            className="input input-ghost text-center text-5xl"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={beats}
             disabled={disabled}
-          >
-            {b}
-          </button>
-        ))}
-      </div>
+            onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+          />
+        </div>
+        <div className="join mt-3">
+          {ALLOWED_BEATS.map((b) => (
+            <button
+              className={cn(
+                "join-item btn btn-lg flex-1 p-0",
+                beats === b
+                  ? "bg-primary border-primary text-primary-content"
+                  : "bg-base-100",
+              )}
+              key={b}
+              onClick={() => onChange(b)}
+              disabled={disabled}
+            >
+              {b}
+            </button>
+          ))}
+        </div>
+      </CardBody>
     </Card>
   );
 }
