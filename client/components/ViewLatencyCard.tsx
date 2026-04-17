@@ -50,9 +50,7 @@ export function ViewLatencyOffsetCard(props: Props) {
         max={40}
         value={displayOffset}
         disabled={disabled}
-        onChange={handleChangeBefore()}
-        onMouseUp={handleChangeBefore(onChange)}
-        onTouchEnd={handleChangeBefore(onChange)}
+        onChange={handleChangeBefore(onChange)}
       />
     </Card>
   );

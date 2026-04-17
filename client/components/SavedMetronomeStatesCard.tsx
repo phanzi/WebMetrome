@@ -1,5 +1,5 @@
 import { STORAGE_KEYS } from "@/constants";
-import { MetronomeState } from "@/hooks/useMetronomeController";
+import { MetronomeState } from "@/hooks/metronome";
 import { useState } from "react";
 import { Card } from "./Card";
 
