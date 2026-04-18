@@ -1,8 +1,8 @@
 import type { Treaty } from "@elysiajs/eden";
 import { treaty } from "@elysiajs/eden";
 import { App } from "@server/app";
+import { atom } from "./atom";
 import { metronome } from "./metronome";
-import { atom } from "./useAtom";
 
 /**
  * type definitions

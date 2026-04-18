@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { ComponentProps, useRef, useState } from "react";
+import type { ComponentProps } from "react";
+import { useRef, useState } from "react";
 
 type Props = Omit<ComponentProps<"button">, "children"> & {
   content: string;

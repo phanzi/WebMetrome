@@ -1,7 +1,7 @@
 import { DEFAULT_BEATS, DEFAULT_BPM, STORAGE_KEYS } from "@/constants";
 import { getAudioContext, scheduleSound } from "@/lib/utils";
+import { atom, toPersisted } from "./atom";
 import { room } from "./room";
-import { atom, toPersisted } from "./useAtom";
 
 export type MetronomeState = {
   bpm: number;

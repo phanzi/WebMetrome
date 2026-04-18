@@ -1,6 +1,6 @@
 import { STORAGE_KEYS } from "@/constants";
-import type { MetronomeState } from "@/hooks/metronome";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import type { MetronomeState } from "@/lib/metronome";
 import { Card, CardBody } from "./Card";
 
 type Props = {

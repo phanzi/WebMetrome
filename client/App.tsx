@@ -8,9 +8,9 @@ import { Card, CardBody } from "./components/Card";
 import { CopyButton } from "./components/CopyButton";
 import { SavedMetronomeStatesCard } from "./components/SavedMetronomeStatesCard";
 import { ViewLatencyOffsetCard } from "./components/ViewLatencyCard";
-import { metronome } from "./hooks/metronome";
-import { room } from "./hooks/room";
-import { useAtom } from "./hooks/useAtom";
+import { useAtom } from "./lib/atom";
+import { metronome } from "./lib/metronome";
+import { room } from "./lib/room";
 import { cn } from "./lib/utils";
 
 export default function App() {
@@ -109,7 +109,6 @@ export default function App() {
             <div className="text-center">
               {state === "online" ? (
                 <div className="join mt-2 w-72 max-w-full justify-center">
-                  {/* TODO: roomId 복사 및 복사 성공 toast 표시 */}
                   <CopyButton content={roomId ?? ""} />
                   <button
                     className="join-item btn bg-base-100 text-md flex-2"
