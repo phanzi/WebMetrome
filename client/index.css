@@ -43,3 +43,7 @@
   --depth: 0;
   --noise: 0;
 }
+
+:root {
+  @apply bg-base-200;
+}
