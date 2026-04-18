@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useSyncExternalStore } from "react";
 
 export function atom<T>(initialValue: T) {
@@ -50,4 +51,17 @@ export function useAtom<T>(atom: Atom<T>) {
   };
 
   return [value, changeValue] as const;
+}
+
+type Props<T> = {
+  atom: Atom<T>;
+  children: (value: T) => ReactNode;
+};
+
+export function SubscribeAtom<T>(props: Props<T>) {
+  const { atom, children } = props;
+
+  const [value] = useAtom(atom);
+
+  return children(value);
 }

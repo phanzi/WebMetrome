@@ -1,5 +1,11 @@
 import { range } from "es-toolkit";
-import { MoonIcon, QrCodeIcon, SunIcon, TriangleAlertIcon } from "lucide-react";
+import {
+  MoonIcon,
+  QrCodeIcon,
+  SunIcon,
+  SunMoonIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { useRef } from "react";
 import { BeatCard } from "./components/BeatCard";
 import { BeatDot } from "./components/BeatDot";
@@ -8,9 +14,10 @@ import { Card, CardBody } from "./components/Card";
 import { CopyButton } from "./components/CopyButton";
 import { SavedMetronomeStatesCard } from "./components/SavedMetronomeStatesCard";
 import { ViewLatencyOffsetCard } from "./components/ViewLatencyCard";
-import { useAtom } from "./lib/atom";
+import { SubscribeAtom, useAtom } from "./lib/atom";
 import { metronome } from "./lib/metronome";
 import { room } from "./lib/room";
+import { nextTheme, theme } from "./lib/theme";
 import { cn } from "./lib/utils";
 
 export default function App() {
@@ -51,12 +58,15 @@ export default function App() {
       <div className="mx-auto min-h-screen max-w-md space-y-4 p-4 font-sans">
         <header className="flex items-center justify-between px-4">
           <h1 className="text-2xl font-bold">Sync Metronome</h1>
-          {/* TODO: 다크 모드 토글 기능 추가 */}
-          <label className="swap btn size-8">
-            <input type="checkbox" />
-            <SunIcon className="swap-on" />
-            <MoonIcon className="swap-off" />
-          </label>
+          <SubscribeAtom atom={theme}>
+            {(theme) => (
+              <button className="btn btn-sm" onClick={nextTheme}>
+                {theme === "light" ? <SunIcon /> : null}
+                {theme === "dark" ? <MoonIcon /> : null}
+                {theme === "system" ? <SunMoonIcon /> : null}
+              </button>
+            )}
+          </SubscribeAtom>
         </header>
 
         <Card className="sticky top-4 z-10 flex-row shadow-lg">
@@ -189,7 +199,7 @@ export default function App() {
             type="text"
             name="room-id"
           />
-          <p className="text-center text-sm text-gray-500">
+          <p className="text-base-content text-center text-sm">
             Enter room ID to join
           </p>
           <div className="modal-action justify-center">
