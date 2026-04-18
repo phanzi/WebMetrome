@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { delay, noop } from "es-toolkit";
-import { z } from "zod";
 import { startTestServer } from "../../fixtures/test-server";
 import {
   connectWebSocket,
@@ -8,29 +7,12 @@ import {
   sendJson,
   waitForMessage,
 } from "../../fixtures/ws-client";
-
-const roomCreatedSchema = z.object({
-  type: z.literal("room-created"),
-  roomId: z.string(),
-});
-
-const roomJoinedSchema = z.object({
-  type: z.literal("room-joined"),
-  roomId: z.string(),
-});
-
-const metronomeStateSchema = z.object({
-  type: z.literal("metronome-state"),
-  metronome: z.object({
-    bpm: z.number(),
-    beats: z.number(),
-  }),
-});
-
-const errorSchema = z.object({
-  type: z.literal("error"),
-  code: z.string(),
-});
+import {
+  errorSchema,
+  roomCreatedSchema,
+  roomJoinedSchema,
+  setMetronomeSchema,
+} from "../../fixtures/ws-message-schemas";
 
 describe("WebSocket close cleanup", () => {
   const sockets: WebSocket[] = [];
@@ -53,18 +35,18 @@ describe("WebSocket close cleanup", () => {
     const created = await waitForMessage(host, roomCreatedSchema);
 
     const member = await connectWebSocket(
-      `ws://localhost:${port}/room?id=${created.roomId}`,
+      `ws://localhost:${port}/room?id=${created.payload.roomId}`,
     );
     sockets.push(member);
     await waitForMessage(member, roomJoinedSchema);
-    await waitForMessage(member, metronomeStateSchema);
+    await waitForMessage(member, setMetronomeSchema);
 
     member.close();
     await delay(80);
 
     sendJson(host, {
       type: "set-metronome",
-      metronome: {
+      payload: {
         bpm: 100,
         beats: 4,
       },
@@ -72,16 +54,13 @@ describe("WebSocket close cleanup", () => {
     await expectNoMessage(host);
 
     const replacementMember = await connectWebSocket(
-      `ws://localhost:${port}/room?id=${created.roomId}`,
+      `ws://localhost:${port}/room?id=${created.payload.roomId}`,
     );
     sockets.push(replacementMember);
     await waitForMessage(replacementMember, roomJoinedSchema);
 
-    const message = await waitForMessage(
-      replacementMember,
-      metronomeStateSchema,
-    );
-    expect(message.metronome.bpm).toBe(100);
+    const message = await waitForMessage(replacementMember, setMetronomeSchema);
+    expect(message.payload.bpm).toBe(100);
   });
 
   it("removes room when owner disconnects", async () => {
@@ -95,11 +74,11 @@ describe("WebSocket close cleanup", () => {
     await delay(80);
 
     const member = await connectWebSocket(
-      `ws://localhost:${port}/room?id=${created.roomId}`,
+      `ws://localhost:${port}/room?id=${created.payload.roomId}`,
     );
     sockets.push(member);
     const error = await waitForMessage(member, errorSchema);
-    expect(error.code).toBe("ROOM_NOT_FOUND");
+    expect(error.payload.code).toBe("ROOM_NOT_FOUND");
     await expectNoMessage(member);
   });
 });

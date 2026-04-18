@@ -1,23 +1,15 @@
 import { afterEach, describe, it } from "bun:test";
 import { noop } from "es-toolkit";
-import { z } from "zod";
 import { startTestServer } from "../../fixtures/test-server";
 import {
   connectWebSocket,
   sendJson,
   waitForMessage,
 } from "../../fixtures/ws-client";
-
-const roomCreatedSchema = z.object({
-  type: z.literal("room-created"),
-  roomId: z.string(),
-});
-
-const rateLimitErrorSchema = z.object({
-  type: z.literal("error"),
-  code: z.literal("RATE_LIMIT"),
-  message: z.literal("Too many requests"),
-});
+import {
+  rateLimitErrorSchema,
+  roomCreatedSchema,
+} from "../../fixtures/ws-message-schemas";
 
 describe("WebSocket rate limit", () => {
   const sockets: WebSocket[] = [];
@@ -45,12 +37,12 @@ describe("WebSocket rate limit", () => {
 
     sendJson(host, {
       type: "set-metronome",
-      metronome: { bpm: 120, beats: 4 },
+      payload: { bpm: 120, beats: 4 },
     });
 
     sendJson(host, {
       type: "set-metronome",
-      metronome: { bpm: 121, beats: 4 },
+      payload: { bpm: 121, beats: 4 },
     });
 
     await waitForMessage(host, rateLimitErrorSchema);
@@ -70,12 +62,12 @@ describe("WebSocket rate limit", () => {
 
     sendJson(host, {
       type: "set-metronome",
-      metronome: { bpm: 120, beats: 4 },
+      payload: { bpm: 120, beats: 4 },
     });
 
     sendJson(host, {
       type: "play-schedule",
-      startedAt: fixedNow + 60_000,
+      payload: { at: fixedNow + 60_000 },
     });
 
     await waitForMessage(host, rateLimitErrorSchema);
@@ -95,12 +87,12 @@ describe("WebSocket rate limit", () => {
 
     sendJson(host, {
       type: "play-schedule",
-      startedAt: fixedNow + 60_000,
+      payload: { at: fixedNow + 60_000 },
     });
 
     sendJson(host, {
       type: "set-metronome",
-      metronome: { bpm: 150, beats: 4 },
+      payload: { bpm: 150, beats: 4 },
     });
 
     await waitForMessage(host, rateLimitErrorSchema);
