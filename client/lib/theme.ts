@@ -9,11 +9,18 @@ theme.subscribe(() => {
   if (!html) {
     throw new Error("html element not found");
   }
-  const value = theme.get();
-  if (value === "system") {
-    html.removeAttribute("data-theme");
-  } else {
-    html.setAttribute("data-theme", value);
+  switch (theme.get()) {
+    case "system":
+      html.removeAttribute("data-theme");
+      break;
+    case "light":
+      html.setAttribute("data-theme", "base-light");
+      break;
+    case "dark":
+      html.setAttribute("data-theme", "base-dark");
+      break;
+    default:
+      throw new Error("Invalid theme");
   }
 });
 

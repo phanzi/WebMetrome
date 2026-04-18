@@ -1,12 +1,12 @@
 @import "tailwindcss";
 @plugin "daisyui" {
   themes:
-    light --default,
-    dark --prefersdark;
+    base-light --default,
+    base-dark --prefersdark;
 }
 
 @plugin "daisyui/theme" {
-  name: "light";
+  name: "base-light";
   default: true;
   prefersdark: false;
   color-scheme: "light";
@@ -47,7 +47,7 @@
 }
 
 @plugin "daisyui/theme" {
-  name: "dark";
+  name: "base-dark";
   default: false;
   prefersdark: true;
   color-scheme: "dark";
