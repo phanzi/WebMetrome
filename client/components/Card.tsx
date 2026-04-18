@@ -6,11 +6,20 @@ export function Card(props: ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        "space-y-3.75 rounded-[18px] bg-white p-3.75 shadow-[0_4px_12px_rgba(0,0,0,0.05)]",
+        "card bg-base-100 card-border border-base-300 card-md",
         className,
       )}
       {...rest}
     >
+      {children}
+    </div>
+  );
+}
+
+export function CardBody(props: ComponentProps<"div">) {
+  const { children, className, ...rest } = props;
+  return (
+    <div className={cn("card-body p-4", className)} {...rest}>
       {children}
     </div>
   );
