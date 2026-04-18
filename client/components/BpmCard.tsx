@@ -1,4 +1,4 @@
-import { MAX_BPM, MIN_BPM } from "@/constants";
+import { DEFAULT_BPM, MAX_BPM, MIN_BPM } from "@/constants";
 import { useEffect, useState } from "react";
 import { Card, CardBody } from "./Card";
 
@@ -25,6 +25,10 @@ export function BpmCard(props: Props) {
       setDisplayBpm(parsed);
       callback?.(parsed);
     };
+  const handleDoubleClick = () => {
+    setDisplayBpm(DEFAULT_BPM);
+    onChange?.(DEFAULT_BPM);
+  };
 
   return (
     <Card className={className}>
@@ -39,6 +43,7 @@ export function BpmCard(props: Props) {
             value={displayBpm}
             disabled={disabled}
             onChange={handleChangeBefore()}
+            onDoubleClick={handleDoubleClick}
             onMouseUp={handleChangeBefore(onChange)}
             onTouchEnd={handleChangeBefore(onChange)}
           />

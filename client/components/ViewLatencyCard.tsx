@@ -25,6 +25,10 @@ export function ViewLatencyOffsetCard(props: Props) {
       setDisplayOffset(parsed);
       callback?.(parsed);
     };
+  const handleDoubleClick = () => {
+    setDisplayOffset(0);
+    onChange?.(0);
+  };
 
   return (
     <Card className={className}>
@@ -39,6 +43,7 @@ export function ViewLatencyOffsetCard(props: Props) {
             value={displayOffset}
             disabled={disabled}
             onChange={handleChangeBefore()}
+            onDoubleClick={handleDoubleClick}
             suffix="ms"
           />
         </div>

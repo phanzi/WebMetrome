@@ -1,4 +1,4 @@
-import { ALLOWED_BEATS } from "@/constants";
+import { ALLOWED_BEATS, DEFAULT_BEATS } from "@/constants";
 import { cn } from "@/lib/utils";
 import { Card, CardBody } from "./Card";
 
@@ -11,6 +11,10 @@ type Props = {
 
 export function BeatCard(props: Props) {
   const { beats, onChange, disabled = false, className = "" } = props;
+
+  const handleDoubleClick = () => {
+    onChange(DEFAULT_BEATS);
+  };
 
   return (
     <Card className={className}>
@@ -25,6 +29,7 @@ export function BeatCard(props: Props) {
             value={beats}
             disabled={disabled}
             onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+            onDoubleClick={handleDoubleClick}
           />
         </div>
         <div className="join mt-3">
@@ -32,9 +37,7 @@ export function BeatCard(props: Props) {
             <button
               className={cn(
                 "join-item btn btn-lg flex-1 p-0",
-                beats === b
-                  ? "bg-primary border-primary text-primary-content"
-                  : "bg-base-100",
+                beats === b ? "btn-primary" : "bg-base-100",
               )}
               key={b}
               onClick={() => onChange(b)}
