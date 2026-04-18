@@ -1,225 +1,236 @@
 import { range } from "es-toolkit";
-import { useState } from "react";
+import {
+  MoonIcon,
+  QrCodeIcon,
+  SunIcon,
+  SunMoonIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
+import { useRef } from "react";
 import { BeatCard } from "./components/BeatCard";
 import { BeatDot } from "./components/BeatDot";
 import { BpmCard } from "./components/BpmCard";
+import { Card, CardBody } from "./components/Card";
+import { CopyButton } from "./components/CopyButton";
 import { SavedMetronomeStatesCard } from "./components/SavedMetronomeStatesCard";
 import { ViewLatencyOffsetCard } from "./components/ViewLatencyCard";
-import { DEFAULT_BEATS, DEFAULT_BPM, STORAGE_KEYS } from "./constants";
-import {
-  MetronomeState,
-  useMetronomeController,
-} from "./hooks/useMetronomeController";
-import { useServerMetronome } from "./hooks/useServerMetronome";
+import { SubscribeAtom, useAtom } from "./lib/atom";
+import { metronome } from "./lib/metronome";
+import { room } from "./lib/room";
+import { nextTheme, theme } from "./lib/theme";
 import { cn } from "./lib/utils";
 
 export default function App() {
   /**
-   * Metronome state
+   * metronome state
    */
-
-  const [state, setState] = useState({
-    bpm: localStorage.getItem(STORAGE_KEYS.bpm)
-      ? parseInt(localStorage.getItem(STORAGE_KEYS.bpm) ?? "")
-      : DEFAULT_BPM,
-    beats: localStorage.getItem(STORAGE_KEYS.beats)
-      ? parseInt(localStorage.getItem(STORAGE_KEYS.beats) ?? "")
-      : DEFAULT_BEATS,
-  });
-  const [offset, setOffset] = useState(0);
-
-  const handleBpmChange = (bpm: number) => {
-    setState((prev) => ({ ...prev, bpm }));
-    localStorage.setItem(STORAGE_KEYS.bpm, bpm.toString());
-    if (server.state === "online" && server.role === "owner") {
-      server.send({
-        type: "set-metronome",
-        metronome: {
-          bpm,
-          beats: state.beats,
-        },
-      });
-    }
-  };
-  const handleBeatsChange = (beats: number) => {
-    setState((prev) => ({ ...prev, beats }));
-    localStorage.setItem(STORAGE_KEYS.beats, beats.toString());
-    if (server.state === "online" && server.role === "owner") {
-      server.send({
-        type: "set-metronome",
-        metronome: {
-          bpm: state.bpm,
-          beats,
-        },
-      });
-    }
-  };
-  const handleOffsetChange = (offset: number) => {
-    setOffset(offset);
-    localStorage.setItem(STORAGE_KEYS.offset, offset.toString());
-  };
-  const handleLoadState = (state: MetronomeState) => {
-    setState(state);
-    localStorage.setItem(STORAGE_KEYS.bpm, state.bpm.toString());
-    localStorage.setItem(STORAGE_KEYS.beats, state.beats.toString());
-    if (server.state === "online" && server.role === "owner") {
-      server.send({
-        type: "set-metronome",
-        metronome: state,
-      });
-    }
-  };
+  const [bpm, setBpm] = useAtom(metronome.bpm);
+  const [beats, setBeats] = useAtom(metronome.beats);
+  const [beatIndex] = useAtom(metronome.beatIndex);
+  const [offset, setOffset] = useAtom(metronome.offset);
+  const [isPlaying] = useAtom(metronome.isPlaying);
 
   /**
-   * Metronome playing state
+   * room state
    */
-  const metronome = useMetronomeController(offset);
-  const toggleMetronome = () => {
-    if (metronome.isPlaying) {
+  const [role] = useAtom(room.role);
+  const [state] = useAtom(room.state);
+  const [roomId] = useAtom(room.id);
+
+  /**
+   * extra state and refs
+   */
+  const joinModalRef = useRef<HTMLDialogElement>(null);
+  const qrCodeModalRef = useRef<HTMLDialogElement>(null);
+
+  const togglePlay = () => {
+    if (isPlaying) {
       metronome.stop();
-      if (server.state === "online" && server.role === "owner") {
-        server.send({
-          type: "play-halt",
-        });
-      }
     } else {
-      // eslint-disable-next-line react-hooks/purity
-      const startedAt = Date.now();
-      if (server.state === "online" && server.role === "owner") {
-        server.send({
-          type: "play-schedule",
-          startedAt,
-        });
-      }
-      metronome.play(state, startedAt);
+      metronome.play();
     }
   };
 
-  /**
-   * Server metronome and connection state
-   */
-  const server = useServerMetronome(state, (response) => {
-    switch (response.type) {
-      case "metronome-state": {
-        setState(response.metronome);
-        return;
-      }
-      case "play-schedule": {
-        metronome.play(state, response.startedAt);
-        return;
-      }
-      case "play-halt": {
-        metronome.stop();
-        return;
-      }
-    }
-  });
-  const handleJoinRoom = () => {
-    const roomId = prompt("Enter room ID");
-    if (!roomId) {
-      return;
-    }
-    server.connect(roomId);
-  };
-
-  /**
-   * extra derived states
-   */
-  const canEditMetronomeSettings =
-    !metronome.isPlaying &&
-    (server.state !== "online" || server.role === "owner");
-  const canToggleMetronome =
-    server.state !== "online" || server.role === "owner";
+  const editDisabled = isPlaying || (state === "online" && role !== "owner");
 
   return (
-    <div className="mx-auto min-h-screen max-w-105 space-y-4 bg-slate-50 px-5 py-5 font-sans">
-      <header className="mb-5 flex items-center justify-between">
-        <h1 className="m-0 text-[1.2rem] font-bold text-slate-900">
-          Sync Metronome
-        </h1>
-        <div className="flex gap-2">
-          {server.state !== "online" ? (
-            <>
-              <button
-                className="rounded-lg bg-slate-700 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={handleJoinRoom}
-                disabled={server.state === "connecting"}
-              >
-                {server.state === "connecting" ? "CONNECTING..." : "JOIN"}
+    <>
+      <div className="mx-auto min-h-screen max-w-md space-y-4 p-4 font-sans">
+        <header className="flex items-center justify-between px-4">
+          <h1 className="text-2xl font-bold">Sync Metronome</h1>
+          <SubscribeAtom atom={theme}>
+            {(theme) => (
+              <button className="btn btn-sm" onClick={nextTheme}>
+                {theme === "light" ? <SunIcon /> : null}
+                {theme === "dark" ? <MoonIcon /> : null}
+                {theme === "system" ? <SunMoonIcon /> : null}
               </button>
-              <button
-                className="rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={() => server.connect()}
-                disabled={server.state === "connecting"}
-              >
-                SHARE
-              </button>
-            </>
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className="rounded-md bg-emerald-500 px-3 py-1.5 text-[0.75rem] font-bold text-white">
-                {server.role === "owner" ? "HOST" : "MEMBER"}: {server.roomId}
-              </div>
-              <button
-                className="rounded-md bg-red-500 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600"
-                onClick={() => server.disconnect()}
-              >
-                EXIT
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+            )}
+          </SubscribeAtom>
+        </header>
 
-      <div className="flex items-center justify-center gap-2 rounded-[25px] border border-slate-200 bg-slate-100 px-4 py-4">
-        {range(0, state.beats).map((i) => (
-          <BeatDot
-            key={i}
-            variant={i === 0 ? "accent" : "regular"}
-            state={metronome.currentBeat === i ? "active" : "inactive"}
-          />
-        ))}
+        <Card className="sticky top-4 z-10 flex-row shadow-lg">
+          <div className="flex w-full p-4">
+            <BeatDot className="w-0 border-0 outline-0" variant="accent" />
+            <div
+              className={cn(
+                "flex w-full items-center justify-center gap-2",
+                beats > 10 && "gap-1.5",
+                beats > 20 && "gap-1",
+                beats > 40 && "gap-0.5",
+              )}
+            >
+              {range(0, beats).map((i) => (
+                <BeatDot
+                  key={i}
+                  variant={i === 0 ? "accent" : "regular"}
+                  state={beatIndex === i ? "active" : "inactive"}
+                />
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <CardBody className="gap-1">
+            <h2 className="card-title justify-center">
+              <span>Remote Control</span>
+              {state === "online" ? (
+                <div>
+                  (&nbsp;
+                  <span className="text-primary">
+                    {role === "owner" ? "HOST" : "MEMBER"}
+                  </span>
+                  &nbsp;)
+                </div>
+              ) : null}
+            </h2>
+            {state === "online" ? (
+              <div className="text-center">
+                <input
+                  className="input input-ghost h-12 text-center text-4xl"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={roomId ?? ""}
+                />
+              </div>
+            ) : null}
+            <div className="text-center">
+              {state === "online" ? (
+                <div className="join mt-2 w-72 max-w-full justify-center">
+                  <CopyButton content={roomId ?? ""} />
+                  <button
+                    className="join-item btn bg-base-100 text-md flex-2"
+                    onClick={() => room.leave()}
+                  >
+                    EXIT
+                  </button>
+                  <button
+                    className="join-item btn bg-base-100 flex-1"
+                    onClick={() => qrCodeModalRef.current?.showModal()}
+                  >
+                    <QrCodeIcon className="size-5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="join mt-1 w-72 max-w-full justify-center">
+                  <button
+                    className="btn btn-md btn-neutral join-item flex-1"
+                    onClick={() => joinModalRef.current?.showModal()}
+                    disabled={state === "connecting"}
+                  >
+                    JOIN
+                  </button>
+                  <button
+                    className="btn btn-md btn-primary join-item flex-1"
+                    onClick={() => room.connect()}
+                    disabled={state === "connecting"}
+                  >
+                    SHARE
+                  </button>
+                </div>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+
+        <BpmCard bpm={bpm} onChange={setBpm} disabled={editDisabled} />
+        <BeatCard beats={beats} onChange={setBeats} disabled={editDisabled} />
+        <ViewLatencyOffsetCard offset={offset} onChange={setOffset} />
+        <SavedMetronomeStatesCard
+          state={{ bpm, beats }}
+          onLoad={({ bpm, beats }) => {
+            setBpm(bpm);
+            setBeats(beats);
+          }}
+          disabled={editDisabled}
+        />
+
+        <button
+          className={cn(
+            "btn btn-xl sticky bottom-4 w-full",
+            isPlaying ? "btn-warning" : "btn-primary",
+          )}
+          onClick={togglePlay}
+          disabled={state === "online" && role !== "owner"}
+        >
+          {isPlaying ? "STOP" : "START"}
+        </button>
       </div>
 
-      <BpmCard
-        bpm={state.bpm}
-        onChange={handleBpmChange}
-        disabled={!canEditMetronomeSettings}
-      />
+      <dialog className="modal" ref={joinModalRef}>
+        <form
+          className="modal-box space-y-2 text-center"
+          method="dialog"
+          onSubmit={(e: React.SubmitEvent<HTMLFormElement>) => {
+            const formData = new FormData(e.target);
+            const roomId = formData.get("room-id");
+            if (!roomId) {
+              return;
+            }
+            room.connect(roomId.toString());
+            e.target.reset();
+          }}
+        >
+          <h2 className="text-center text-lg font-bold">Remote Control</h2>
+          <input
+            className="input input-bordered input-lg w-72 max-w-full text-center text-3xl"
+            type="text"
+            name="room-id"
+          />
+          <p className="text-base-content text-center text-sm">
+            Enter room ID to join
+          </p>
+          <div className="modal-action justify-center">
+            <button className="btn btn-primary w-72 max-w-full">Join</button>
+          </div>
+        </form>
+        <form className="modal-backdrop" method="dialog">
+          <button>close</button>
+        </form>
+      </dialog>
 
-      <BeatCard
-        beats={state.beats}
-        onChange={handleBeatsChange}
-        disabled={!canEditMetronomeSettings}
-      />
-
-      <ViewLatencyOffsetCard
-        offset={offset}
-        onChange={handleOffsetChange}
-        disabled={metronome.isPlaying}
-      />
-
-      <SavedMetronomeStatesCard
-        state={state}
-        onLoad={handleLoadState}
-        disabled={!canEditMetronomeSettings}
-      />
-
-      <button
-        className={cn(
-          "w-full rounded-[40px] border-none px-5 py-5 text-[1.4rem] font-bold text-white transition",
-          metronome.isPlaying
-            ? "bg-red-500 hover:bg-red-600"
-            : "bg-blue-500 hover:bg-blue-600",
-          canToggleMetronome
-            ? "cursor-pointer"
-            : "cursor-not-allowed opacity-60",
-        )}
-        onClick={toggleMetronome}
-        disabled={!canToggleMetronome}
-      >
-        {metronome.isPlaying ? "STOP" : "START"}
-      </button>
-    </div>
+      <dialog className="modal" ref={qrCodeModalRef}>
+        <div className="modal-box space-y-2">
+          <h2 className="text-center text-lg font-bold">Link QR Code</h2>
+          <div className="text-center">
+            <span className="skeleton bg-base-200 inline-block h-72 w-72 max-w-full p-4">
+              <p className="text-center">
+                <TriangleAlertIcon className="inline-block size-8" /> <br />
+                준비 중 입니다. <br />
+                Preparing...
+              </p>
+            </span>
+          </div>
+          <p className="text-center text-sm text-gray-500">
+            Scan QR code to join
+          </p>
+        </div>
+        <form className="modal-backdrop" method="dialog">
+          <button>close</button>
+        </form>
+      </dialog>
+    </>
   );
 }

@@ -6,19 +6,17 @@ import {
 import { RoomService } from "@server/domain/roomService";
 import { describe, expect, it, mock } from "bun:test";
 
-type ServerMessage =
-  | { type: "metronome-state"; metronome: { bpm: number; beats: number } }
-  | { type: "play-schedule"; startedAt: number }
-  | { type: "play-halt" };
+/** Minimal message shape for RoomService generic; real WS schema is in app.ts. */
+type TestMessage = { type: string };
 
 const createSocket = (id: string) => {
-  const send = mock((_data: ServerMessage) => {});
+  const send = mock((_data: TestMessage) => {});
   return { ws: { id, send }, send };
 };
 
 describe("RoomService", () => {
   it("creates a room once per owner and returns generated id", () => {
-    const service = new RoomService<ServerMessage>();
+    const service = new RoomService<TestMessage>();
     const { ws: host } = createSocket("host");
 
     const created = service.createRoom(host);
@@ -37,7 +35,7 @@ describe("RoomService", () => {
   });
 
   it("validates room id and join preconditions", () => {
-    const service = new RoomService<ServerMessage>();
+    const service = new RoomService<TestMessage>();
     const { ws: host } = createSocket("host");
     const { ws: member } = createSocket("member");
 
@@ -57,7 +55,7 @@ describe("RoomService", () => {
   });
 
   it("returns latest metronome state and play schedule for late joiner", () => {
-    const service = new RoomService<ServerMessage>();
+    const service = new RoomService<TestMessage>();
     const { ws: host } = createSocket("host");
     const { ws: member } = createSocket("member");
     const { ws: late } = createSocket("late");
@@ -80,9 +78,7 @@ describe("RoomService", () => {
     });
     expect(set.success).toBe(true);
 
-    const scheduled = service.schedulePlay(host.id, {
-      startedAt: 123_456,
-    });
+    const scheduled = service.setPlay(host.id, 123_456);
     expect(scheduled.success).toBe(true);
 
     const lateJoin = service.joinRoom(late, created.data.id);
@@ -91,14 +87,14 @@ describe("RoomService", () => {
       return;
     }
 
-    expect(lateJoin.data.metronomeState).toEqual({ bpm: 150, beats: 6 });
-    expect(lateJoin.data.playScheduleSnap).toEqual({ startedAt: 123_456 });
+    expect(lateJoin.data.room.metronome).toEqual({ bpm: 150, beats: 6 });
+    expect(lateJoin.data.room.lastPlayAt).toBe(123_456);
   });
 
-  it("enforces owner permissions for state updates and broadcast", () => {
-    const service = new RoomService<ServerMessage>();
+  it("enforces owner permissions for state updates", () => {
+    const service = new RoomService<TestMessage>();
     const { ws: host } = createSocket("host");
-    const { ws: member, send: memberSend } = createSocket("member");
+    const { ws: member } = createSocket("member");
 
     const created = service.createRoom(host);
     expect(created.success).toBe(true);
@@ -116,9 +112,7 @@ describe("RoomService", () => {
       expect(unauthorizedSet.code).toBe("UNAUTHORIZED");
     }
 
-    const unauthorizedSchedule = service.schedulePlay(member.id, {
-      startedAt: Date.now(),
-    });
+    const unauthorizedSchedule = service.setPlay(member.id, Date.now());
     expect(unauthorizedSchedule.success).toBe(false);
     if (!unauthorizedSchedule.success) {
       expect(unauthorizedSchedule.code).toBe("UNAUTHORIZED");
@@ -129,44 +123,10 @@ describe("RoomService", () => {
     if (!unauthorizedHalt.success) {
       expect(unauthorizedHalt.code).toBe("UNAUTHORIZED");
     }
-
-    const unauthorizedBroadcast = service.broadcast(member.id, {
-      type: "play-halt",
-    });
-    expect(unauthorizedBroadcast.success).toBe(false);
-    if (!unauthorizedBroadcast.success) {
-      expect(unauthorizedBroadcast.code).toBe("UNAUTHORIZED");
-    }
-    expect(memberSend).not.toHaveBeenCalled();
-  });
-
-  it("broadcasts owner messages to joined members", () => {
-    const service = new RoomService<ServerMessage>();
-    const { ws: host } = createSocket("host");
-    const { ws: memberA, send: sendA } = createSocket("member-a");
-    const { ws: memberB, send: sendB } = createSocket("member-b");
-
-    const created = service.createRoom(host);
-    expect(created.success).toBe(true);
-    if (!created.success) {
-      return;
-    }
-
-    service.joinRoom(memberA, created.data.id);
-    service.joinRoom(memberB, created.data.id);
-
-    const payload: ServerMessage = {
-      type: "metronome-state",
-      metronome: { bpm: 130, beats: 4 },
-    };
-    const broadcasted = service.broadcast(host.id, payload);
-    expect(broadcasted.success).toBe(true);
-    expect(sendA).toHaveBeenCalledWith(payload);
-    expect(sendB).toHaveBeenCalledWith(payload);
   });
 
   it("handles member leave, owner handoff, and room close", () => {
-    const service = new RoomService<ServerMessage>();
+    const service = new RoomService<TestMessage>();
     const { ws: host } = createSocket("host");
     const { ws: member } = createSocket("member");
 
@@ -196,7 +156,7 @@ describe("RoomService", () => {
       }
     }
 
-    const hostOnlyService = new RoomService<ServerMessage>();
+    const hostOnlyService = new RoomService<TestMessage>();
     const { ws: soloHost } = createSocket("solo-host");
     const soloRoom = hostOnlyService.createRoom(soloHost);
     expect(soloRoom.success).toBe(true);

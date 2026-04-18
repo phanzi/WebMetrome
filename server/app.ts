@@ -1,208 +1,208 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
+import z from "zod";
+import { ROOM_ID_REGEX } from "./domain/constants";
 import { RoomService } from "./domain/roomService";
 import { createRateLimiter } from "./shared/rateLimiter";
 
-const querySchema = t.Object({
-  id: t.Optional(t.String()),
+const querySchema = z.object({
+  id: z.string().regex(ROOM_ID_REGEX).optional(),
 });
 
-const bodySchema = t.Union([
-  t.Object({
-    type: t.Literal("set-metronome"),
-    metronome: t.Object({
-      bpm: t.Number(),
-      beats: t.Number(),
+const messageSchema = z.union([
+  z.object({
+    type: z.literal("set-metronome"),
+    payload: z.object({
+      bpm: z.number(),
+      beats: z.number(),
     }),
   }),
-  t.Object({
-    type: t.Literal("play-schedule"),
-    // ms Unix timestamp
-    startedAt: t.Number(),
+  z.object({
+    type: z.literal("play-schedule"),
+    payload: z.object({
+      at: z.number(), // ms Unix timestamp
+    }),
   }),
-  t.Object({
-    type: t.Literal("play-halt"),
+  z.object({
+    type: z.literal("play-halt"),
   }),
 ]);
 
-const responseSchema = t.Union([
-  t.Object({
-    type: t.Literal("room-created"),
-    roomId: t.String(),
-  }),
-  t.Object({
-    type: t.Literal("room-joined"),
-    roomId: t.String(),
-  }),
-  t.Object({
-    type: t.Literal("metronome-state"),
-    metronome: t.Object({
-      bpm: t.Number(),
-      beats: t.Number(),
+const responseSchema = messageSchema.or(
+  z.union([
+    z.object({
+      type: z.literal("room-created"),
+      payload: z.object({
+        roomId: z.string(),
+        role: z.literal("owner"),
+      }),
     }),
-  }),
-  t.Object({
-    type: t.Literal("play-schedule"),
-    // ms Unix timestamp
-    startedAt: t.Number(),
-  }),
-  t.Object({
-    type: t.Literal("play-halt"),
-  }),
-  t.Object({
-    type: t.Literal("promote-owner"),
-  }),
-  t.Object({
-    type: t.Literal("error"),
-    code: t.Union([
-      t.Literal("INVALID_ROOM"),
-      t.Literal("UNAUTHORIZED"),
-      t.Literal("ALREADY_CREATED"),
-      t.Literal("FAILED_TO_CREATE_ROOM_ID"),
-      t.Literal("INVALID_PAYLOAD"),
-      t.Literal("RATE_LIMIT"),
-      t.Literal("ALREADY_JOINED"),
-      t.Literal("INVALID_ROOM_ID"),
-      t.Literal("ROOM_NOT_FOUND"),
-    ]),
-    message: t.String(),
-  }),
-]);
+    z.object({
+      type: z.literal("room-joined"),
+      payload: z.object({
+        roomId: z.string(),
+        role: z.literal("member"),
+      }),
+    }),
+    z.object({
+      type: z.literal("promote-owner"),
+    }),
+    z.object({
+      type: z.literal("error"),
+      payload: z.object({
+        code: z.literal([
+          "INVALID_ROOM",
+          "UNAUTHORIZED",
+          "ALREADY_CREATED",
+          "FAILED_TO_CREATE_ROOM_ID",
+          "INVALID_PAYLOAD",
+          "RATE_LIMIT",
+          "ALREADY_JOINED",
+          "INVALID_ROOM_ID",
+          "ROOM_NOT_FOUND",
+          "NOT_JOINED_OR_CREATED",
+        ]),
+        message: z.string(),
+      }),
+    }),
+  ]),
+);
 
-export type ResponseSchema = typeof responseSchema.static;
+export type ResponseSchema = z.output<typeof responseSchema>;
 
 export function createApp(options?: { now?: () => number }) {
   const getNow = options?.now ?? Date.now;
   const rateLimiter = createRateLimiter({ now: getNow });
   const roomService = new RoomService<ResponseSchema>();
 
+  const rejectRateLimited = (ws: {
+    send: (data: ResponseSchema) => void;
+  }) => {
+    ws.send({
+      type: "error",
+      payload: {
+        code: "RATE_LIMIT",
+        message: "Too many requests",
+      },
+    });
+  };
+
   return new Elysia().ws("/room", {
     query: querySchema,
-    body: bodySchema,
+    body: messageSchema,
     response: responseSchema,
     open(ws) {
       const roomId = ws.data.query.id;
       if (roomId) {
         const joined = roomService.joinRoom(ws, roomId);
         if (joined.success) {
+          ws.subscribe(joined.data.room.id);
           ws.send({
             type: "room-joined",
-            roomId: roomId,
+            payload: {
+              roomId: roomId,
+              role: "member",
+            },
           });
           ws.send({
-            type: "metronome-state",
-            metronome: joined.data.metronomeState,
+            type: "set-metronome",
+            payload: joined.data.room.metronome,
           });
-          if (joined.data.playScheduleSnap) {
+          if (joined.data.room.lastPlayAt) {
             ws.send({
               type: "play-schedule",
-              startedAt: joined.data.playScheduleSnap.startedAt,
+              payload: {
+                at: joined.data.room.lastPlayAt,
+              },
             });
           }
         } else {
           ws.send({
             type: "error",
-            code: joined.code,
-            message: joined.message,
+            payload: {
+              code: joined.code,
+              message: joined.message,
+            },
           });
         }
       } else {
         const created = roomService.createRoom(ws);
         if (created.success) {
+          ws.subscribe(created.data.id);
           ws.send({
             type: "room-created",
-            roomId: created.data.id,
+            payload: {
+              roomId: created.data.id,
+              role: "owner",
+            },
           });
         } else {
           ws.send({
             type: "error",
-            code: created.code,
-            message: created.message,
+            payload: {
+              code: created.code,
+              message: created.message,
+            },
           });
         }
       }
     },
     message(ws, message) {
-      if (!rateLimiter.allow(ws.id)) {
-        ws.send({
-          type: "error",
-          code: "RATE_LIMIT",
-          message: "Too many requests",
-        });
-        return;
-      }
-
       switch (message.type) {
         case "set-metronome": {
-          const set = roomService.setMetronomeState(ws.id, message.metronome);
+          if (!rateLimiter.allow(ws.id)) {
+            rejectRateLimited(ws);
+            return;
+          }
+          const set = roomService.setMetronomeState(ws.id, message.payload);
           if (!set.success) {
             ws.send({
               type: "error",
-              code: set.code,
-              message: set.message,
+              payload: {
+                code: set.code,
+                message: set.message,
+              },
             });
             return;
           }
-          const broadcast = roomService.broadcast(ws.id, {
-            type: "metronome-state",
-            metronome: message.metronome,
-          });
-          if (!broadcast.success) {
-            ws.send({
-              type: "error",
-              code: broadcast.code,
-              message: broadcast.message,
-            });
-            return;
-          }
+          ws.publish(set.data.roomId, message);
           return;
         }
         case "play-schedule": {
-          const schedule = roomService.schedulePlay(ws.id, {
-            startedAt: message.startedAt,
-          });
-          if (!schedule.success) {
+          if (!rateLimiter.allow(ws.id)) {
+            rejectRateLimited(ws);
+            return;
+          }
+          const play = roomService.setPlay(ws.id, message.payload.at);
+          if (!play.success) {
             ws.send({
               type: "error",
-              code: schedule.code,
-              message: schedule.message,
+              payload: {
+                code: play.code,
+                message: play.message,
+              },
             });
             return;
           }
-          const broadcast = roomService.broadcast(ws.id, {
-            type: "play-schedule",
-            startedAt: message.startedAt,
-          });
-          if (!broadcast.success) {
-            ws.send({
-              type: "error",
-              code: broadcast.code,
-              message: broadcast.message,
-            });
-            return;
-          }
+          ws.publish(play.data.roomId, message);
           return;
         }
         case "play-halt": {
+          if (!rateLimiter.allow(ws.id)) {
+            rejectRateLimited(ws);
+            return;
+          }
           const halt = roomService.haltPlay(ws.id);
           if (!halt.success) {
             ws.send({
               type: "error",
-              code: halt.code,
-              message: halt.message,
+              payload: {
+                code: halt.code,
+                message: halt.message,
+              },
             });
             return;
           }
-          const broadcast = roomService.broadcast(ws.id, {
-            type: "play-halt",
-          });
-          if (!broadcast.success) {
-            ws.send({
-              type: "error",
-              code: broadcast.code,
-              message: broadcast.message,
-            });
-            return;
-          }
+          ws.publish(halt.data.roomId, message);
           return;
         }
       }

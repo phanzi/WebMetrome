@@ -1,8 +1,7 @@
+import { DEFAULT_BEATS, DEFAULT_BPM } from "@/constants";
 import { Fail, Ok } from "@server/shared/result";
 import { nanoid } from "nanoid";
 import {
-  DEFAULT_BEATS,
-  DEFAULT_BPM,
   ROOM_ID_GENERATE_ATTEMPTS,
   ROOM_ID_LENGTH,
   ROOM_ID_REGEX,
@@ -16,22 +15,19 @@ type MetronomeState = {
   bpm: number;
   beats: number;
 };
-type PlayScheduleSnap = {
-  startedAt: number;
-};
 
-type Room<T> = {
+type Room<T extends { type: string }> = {
   id: string;
-  metronomeState: MetronomeState;
+  metronome: MetronomeState;
+  lastPlayAt: number | null;
   members: Map<string, IWebSocket<T>>;
   owner: IWebSocket<T>;
-  playScheduleSnap: PlayScheduleSnap | null;
 };
 
-export class RoomService<T> {
+export class RoomService<T extends { type: string }> {
   constructor(
     private readonly rooms = new Map<string, Room<T>>(),
-    private readonly wsId2RoomId = new Map<string, string>(),
+    public readonly wsId2RoomId = new Map<string, string>(),
   ) {}
 
   private createRoomId() {
@@ -56,20 +52,6 @@ export class RoomService<T> {
     return Ok(room);
   }
 
-  public broadcast(wsId: string, payload: T) {
-    const room = this.resolveRoom(wsId);
-    if (!room.success) {
-      return room;
-    }
-    if (room.data.owner.id !== wsId) {
-      return Fail("UNAUTHORIZED", "Only owner can broadcast");
-    }
-    for (const member of room.data.members.values()) {
-      member.send(payload);
-    }
-    return Ok("OK");
-  }
-
   public createRoom(ws: IWebSocket<T>) {
     const room = this.resolveRoom(ws.id);
     if (room.success) {
@@ -83,13 +65,13 @@ export class RoomService<T> {
     this.wsId2RoomId.set(ws.id, id.data);
     this.rooms.set(id.data, {
       id: id.data,
-      metronomeState: {
+      metronome: {
         bpm: DEFAULT_BPM,
         beats: DEFAULT_BEATS,
       },
+      lastPlayAt: null,
       members: new Map(),
       owner: ws,
-      playScheduleSnap: null,
     });
     return Ok({ id: id.data });
   }
@@ -110,48 +92,7 @@ export class RoomService<T> {
     this.wsId2RoomId.set(ws.id, roomId);
     room.members.set(ws.id, ws);
 
-    return Ok({
-      metronomeState: room.metronomeState,
-      playScheduleSnap: room.playScheduleSnap,
-    });
-  }
-
-  public setMetronomeState(wsId: string, metronomeState: MetronomeState) {
-    const room = this.resolveRoom(wsId);
-    if (!room.success) {
-      return room;
-    }
-    if (room.data.owner.id !== wsId) {
-      return Fail("UNAUTHORIZED", "Only owner can set metronome state");
-    }
-    room.data.metronomeState = metronomeState;
-    return Ok("OK");
-  }
-
-  public schedulePlay(wsId: string, snap: PlayScheduleSnap) {
-    const room = this.resolveRoom(wsId);
-    if (!room.success) {
-      return room;
-    }
-    if (room.data.owner.id !== wsId) {
-      return Fail("UNAUTHORIZED", "Only owner can schedule play");
-    }
-
-    room.data.playScheduleSnap = snap;
-    return Ok(room.data.playScheduleSnap);
-  }
-
-  public haltPlay(wsId: string) {
-    const room = this.resolveRoom(wsId);
-    if (!room.success) {
-      return room;
-    }
-    if (room.data.owner.id !== wsId) {
-      return Fail("UNAUTHORIZED", "Only owner can halt play");
-    }
-
-    room.data.playScheduleSnap = null;
-    return Ok("OK");
+    return Ok({ room });
   }
 
   public leaveRoom(wsId: string) {
@@ -179,6 +120,48 @@ export class RoomService<T> {
     return Ok({
       type: "owner-changed",
       owner: newOwner,
+    });
+  }
+
+  public setMetronomeState(wsId: string, metronome: MetronomeState) {
+    const room = this.resolveRoom(wsId);
+    if (!room.success) {
+      return room;
+    }
+    if (room.data.owner.id !== wsId) {
+      return Fail("UNAUTHORIZED", "Only owner can set metronome state");
+    }
+    room.data.metronome = metronome;
+    return Ok({
+      roomId: room.data.id,
+    });
+  }
+
+  public setPlay(wsId: string, at: number) {
+    const room = this.resolveRoom(wsId);
+    if (!room.success) {
+      return room;
+    }
+    if (room.data.owner.id !== wsId) {
+      return Fail("UNAUTHORIZED", "Only owner can set play");
+    }
+    room.data.lastPlayAt = at;
+    return Ok({
+      roomId: room.data.id,
+    });
+  }
+
+  public haltPlay(wsId: string) {
+    const room = this.resolveRoom(wsId);
+    if (!room.success) {
+      return room;
+    }
+    if (room.data.owner.id !== wsId) {
+      return Fail("UNAUTHORIZED", "Only owner can halt play");
+    }
+    room.data.lastPlayAt = null;
+    return Ok({
+      roomId: room.data.id,
     });
   }
 }

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { noop } from "es-toolkit";
-import { z } from "zod";
 import { startTestServer } from "../../fixtures/test-server";
 import {
   connectWebSocket,
@@ -8,24 +7,11 @@ import {
   sendJson,
   waitForMessage,
 } from "../../fixtures/ws-client";
-
-const roomCreatedSchema = z.object({
-  type: z.literal("room-created"),
-  roomId: z.string(),
-});
-
-const roomJoinedSchema = z.object({
-  type: z.literal("room-joined"),
-  roomId: z.string(),
-});
-
-const metronomeStateSchema = z.object({
-  type: z.literal("metronome-state"),
-  metronome: z.object({
-    bpm: z.number(),
-    beats: z.number(),
-  }),
-});
+import {
+  roomCreatedSchema,
+  roomJoinedSchema,
+  setMetronomeSchema,
+} from "../../fixtures/ws-message-schemas";
 
 describe("WebSocket room isolation", () => {
   const sockets: WebSocket[] = [];
@@ -51,27 +37,27 @@ describe("WebSocket room isolation", () => {
     const otherRoom = await waitForMessage(otherHost, roomCreatedSchema);
 
     const memberA = await connectWebSocket(
-      `ws://localhost:${port}/room?id=${hostRoom.roomId}`,
+      `ws://localhost:${port}/room?id=${hostRoom.payload.roomId}`,
     );
     const memberB = await connectWebSocket(
-      `ws://localhost:${port}/room?id=${otherRoom.roomId}`,
+      `ws://localhost:${port}/room?id=${otherRoom.payload.roomId}`,
     );
     sockets.push(memberA, memberB);
     await waitForMessage(memberA, roomJoinedSchema);
-    await waitForMessage(memberA, metronomeStateSchema);
+    await waitForMessage(memberA, setMetronomeSchema);
     await waitForMessage(memberB, roomJoinedSchema);
-    await waitForMessage(memberB, metronomeStateSchema);
+    await waitForMessage(memberB, setMetronomeSchema);
 
     sendJson(host, {
       type: "set-metronome",
-      metronome: {
+      payload: {
         bpm: 128,
         beats: 3,
       },
     });
 
-    const roomMessage = await waitForMessage(memberA, metronomeStateSchema);
-    expect(roomMessage.metronome.bpm).toBe(128);
+    const roomMessage = await waitForMessage(memberA, setMetronomeSchema);
+    expect(roomMessage.payload.bpm).toBe(128);
     await expectNoMessage(otherHost);
     await expectNoMessage(memberB);
   });
