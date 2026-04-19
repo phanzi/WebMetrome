@@ -104,16 +104,14 @@ export function createApp() {
           return;
         }
 
-        if (joined.code !== "ROOM_NOT_FOUND") {
-          ws.send({
-            type: "error",
-            payload: {
-              code: joined.code,
-              message: joined.message,
-            },
-          });
-          return;
-        }
+        ws.send({
+          type: "error",
+          payload: {
+            code: joined.code,
+            message: joined.message,
+          },
+        });
+        return;
       }
 
       const created = roomService.createRoom(ws);

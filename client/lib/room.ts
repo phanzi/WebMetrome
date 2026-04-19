@@ -62,6 +62,8 @@ const _errorCases: ErrorCaseMap = {
     con.close();
   },
   ROOM_NOT_FOUND: (con) => {
+    console.log("ROOM_NOT_FOUND");
+    error.set("Room not found");
     con.close();
   },
 };
@@ -101,12 +103,16 @@ const _messageCases: MessageCaseMap = {
 };
 
 function connect(roomId?: string) {
+  error.set("");
   const con = treaty<App>(SERVER_ORIGIN).room.subscribe({
     query: roomId ? { id: roomId } : {},
   });
 
+  con.on("open", () => {
+    error.set("");
+  });
   con.on("message", ({ data }) => {
-    _messageCases[data.type](con, data as unsafe_any);
+    _messageCases[data.type](con, data.payload as unsafe_any);
   });
   con.on("error", () => {
     con.close();
