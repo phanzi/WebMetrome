@@ -44,8 +44,7 @@ export function BpmCard(props: Props) {
             disabled={disabled}
             onChange={handleChangeBefore()}
             onDoubleClick={handleDoubleClick}
-            onMouseUp={handleChangeBefore(onChange)}
-            onTouchEnd={handleChangeBefore(onChange)}
+            onBlur={handleChangeBefore(onChange)}
           />
         </div>
         <div className="mt-3 text-center">
@@ -57,8 +56,7 @@ export function BpmCard(props: Props) {
             value={displayBpm}
             disabled={disabled}
             onChange={handleChangeBefore()}
-            onMouseUp={handleChangeBefore(onChange)}
-            onTouchEnd={handleChangeBefore(onChange)}
+            onBlur={handleChangeBefore(onChange)}
           />
         </div>
       </CardBody>
