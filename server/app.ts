@@ -2,7 +2,6 @@ import { Elysia } from "elysia";
 import z from "zod";
 import { ROOM_ID_REGEX } from "./domain/constants";
 import { RoomService } from "./domain/roomService";
-import { createRateLimiter } from "./shared/rateLimiter";
 
 const querySchema = z.object({
   id: z.string().regex(ROOM_ID_REGEX).optional(),
@@ -24,6 +23,7 @@ const messageSchema = z.union([
   }),
   z.object({
     type: z.literal("play-halt"),
+    payload: z.object({}),
   }),
 ]);
 
@@ -45,6 +45,7 @@ const responseSchema = messageSchema.or(
     }),
     z.object({
       type: z.literal("promote-owner"),
+      payload: z.object({}),
     }),
     z.object({
       type: z.literal("error"),
@@ -59,7 +60,6 @@ const responseSchema = messageSchema.or(
           "ALREADY_JOINED",
           "INVALID_ROOM_ID",
           "ROOM_NOT_FOUND",
-          "NOT_JOINED_OR_CREATED",
         ]),
         message: z.string(),
       }),
@@ -69,22 +69,8 @@ const responseSchema = messageSchema.or(
 
 export type ResponseSchema = z.output<typeof responseSchema>;
 
-export function createApp(options?: { now?: () => number }) {
-  const getNow = options?.now ?? Date.now;
-  const rateLimiter = createRateLimiter({ now: getNow });
+export function createApp() {
   const roomService = new RoomService<ResponseSchema>();
-
-  const rejectRateLimited = (ws: {
-    send: (data: ResponseSchema) => void;
-  }) => {
-    ws.send({
-      type: "error",
-      payload: {
-        code: "RATE_LIMIT",
-        message: "Too many requests",
-      },
-    });
-  };
 
   return new Elysia().ws("/room", {
     query: querySchema,
@@ -115,44 +101,43 @@ export function createApp(options?: { now?: () => number }) {
               },
             });
           }
-        } else {
-          ws.send({
-            type: "error",
-            payload: {
-              code: joined.code,
-              message: joined.message,
-            },
-          });
+          return;
         }
-      } else {
-        const created = roomService.createRoom(ws);
-        if (created.success) {
-          ws.subscribe(created.data.id);
-          ws.send({
-            type: "room-created",
-            payload: {
-              roomId: created.data.id,
-              role: "owner",
-            },
-          });
-        } else {
-          ws.send({
-            type: "error",
-            payload: {
-              code: created.code,
-              message: created.message,
-            },
-          });
-        }
+
+        ws.send({
+          type: "error",
+          payload: {
+            code: joined.code,
+            message: joined.message,
+          },
+        });
+        return;
       }
+
+      const created = roomService.createRoom(ws);
+      if (created.success) {
+        ws.subscribe(created.data.id);
+        ws.send({
+          type: "room-created",
+          payload: {
+            roomId: created.data.id,
+            role: "owner",
+          },
+        });
+        return;
+      }
+
+      ws.send({
+        type: "error",
+        payload: {
+          code: created.code,
+          message: created.message,
+        },
+      });
     },
     message(ws, message) {
       switch (message.type) {
         case "set-metronome": {
-          if (!rateLimiter.allow(ws.id)) {
-            rejectRateLimited(ws);
-            return;
-          }
           const set = roomService.setMetronomeState(ws.id, message.payload);
           if (!set.success) {
             ws.send({
@@ -168,10 +153,6 @@ export function createApp(options?: { now?: () => number }) {
           return;
         }
         case "play-schedule": {
-          if (!rateLimiter.allow(ws.id)) {
-            rejectRateLimited(ws);
-            return;
-          }
           const play = roomService.setPlay(ws.id, message.payload.at);
           if (!play.success) {
             ws.send({
@@ -187,10 +168,6 @@ export function createApp(options?: { now?: () => number }) {
           return;
         }
         case "play-halt": {
-          if (!rateLimiter.allow(ws.id)) {
-            rejectRateLimited(ws);
-            return;
-          }
           const halt = roomService.haltPlay(ws.id);
           if (!halt.success) {
             ws.send({
@@ -208,12 +185,12 @@ export function createApp(options?: { now?: () => number }) {
       }
     },
     close(ws) {
-      rateLimiter.clear(ws.id);
       const left = roomService.leaveRoom(ws.id);
       if (left.success) {
         if (left.data.type === "owner-changed") {
           left.data.owner.send({
             type: "promote-owner",
+            payload: {},
           });
         }
       }

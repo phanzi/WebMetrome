@@ -1,8 +1,9 @@
 import { cn } from "@/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
+import { PropsWithChildren } from "react";
 
 const beatDotClass = cva(
-  "animation-duration rounded-full transition-all duration-100 [animation-duration:0.5s]",
+  "animation-duration rounded-full transition-all duration-100 [animation-duration:0.5s] flex items-center justify-center text-neutral-content",
   {
     variants: {
       variant: {
@@ -33,11 +34,12 @@ const beatDotClass = cva(
   },
 );
 
-type Props = VariantProps<typeof beatDotClass> & {
-  className?: string;
-};
+type Props = VariantProps<typeof beatDotClass> &
+  PropsWithChildren<{
+    className?: string;
+  }>;
 
 export function BeatDot(props: Props) {
-  const { className, ...rest } = props;
-  return <div className={cn(beatDotClass(rest), className)}></div>;
+  const { className, children, ...rest } = props;
+  return <div className={cn(beatDotClass(rest), className)}>{children}</div>;
 }
