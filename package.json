@@ -29,6 +29,7 @@
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-router": "^1.168.22",
     "@vitejs/plugin-react": "^6.0.1",
+    "@xstate/react": "^6.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "daisyui": "^5.5.19",
@@ -42,6 +43,7 @@
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.2",
     "vite": "^8.0.7",
+    "xstate": "^5.30.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {

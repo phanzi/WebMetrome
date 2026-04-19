@@ -1,22 +1,28 @@
-import type { Treaty } from "@elysiajs/eden";
 import { treaty } from "@elysiajs/eden";
-import { App } from "@server/app";
+import type { App } from "@server/app";
 import { atom } from "./atom";
 import { metronome } from "./metronome";
 
 /**
  * type definitions
  */
-type WS = ReturnType<ReturnType<typeof treaty<App>>["room"]["subscribe"]>;
-type WSRequest = Parameters<WS["send"]>[0] extends infer T | Array<unknown>
-  ? T
-  : never;
-type WSResponse =
-  Parameters<Parameters<WS["subscribe"]>[0]>[0] extends Treaty.OnMessage<
-    infer R
-  >
-    ? R
-    : never;
+type WS = App["~Routes"]["room"]["subscribe"];
+type Connection = ReturnType<
+  ReturnType<typeof treaty<App>>["room"]["subscribe"]
+>;
+type WSRequest = WS["body"];
+type WSResponse = WS["response"][200];
+type ErrorCode = (WSResponse & { type: "error" })["payload"]["code"];
+type MessageCaseMap = {
+  [key in WSResponse["type"]]: (
+    con: Connection,
+    data: (WSResponse & { type: key })["payload"],
+  ) => unknown;
+};
+type ErrorCaseMap = Record<
+  ErrorCode,
+  (con: Connection, message: string) => unknown
+>;
 
 /**
  * constants
@@ -24,39 +30,74 @@ type WSResponse =
 const SERVER_ORIGIN = window?.location?.origin ?? "http://localhost:4000";
 
 const state = atom<"idle" | "connecting" | "sending" | "online">("idle");
+const error = atom("");
 const role = atom<"owner" | "member">("owner");
 const id = atom<string | null>(null);
 
 let _close = () => {};
 let _send = (_: WSRequest) => {};
 
-const _cases = {
-  "room-created": (data) => {
+const _errorCases: ErrorCaseMap = {
+  INVALID_ROOM: (con) => {
+    con.close();
+  },
+  UNAUTHORIZED: (con) => {
+    con.close();
+  },
+  ALREADY_CREATED: (con, message) => {
+    console.error(message);
+  },
+  FAILED_TO_CREATE_ROOM_ID: () => {
+    error.set("Try again later");
+  },
+  INVALID_PAYLOAD: () => {
+    error.set("Something went wrong");
+  },
+  RATE_LIMIT: () => {
+    error.set("Try again later");
+  },
+  ALREADY_JOINED: () => {},
+  INVALID_ROOM_ID: (con) => {
+    error.set("Bad room id");
+    con.close();
+  },
+  ROOM_NOT_FOUND: (con) => {
+    con.close();
+  },
+};
+
+const _messageCases: MessageCaseMap = {
+  "room-created": (con, payload) => {
     role.set("owner");
-    id.set(data.payload.roomId);
+    id.set(payload.roomId);
+    state.set("online");
+    con.send({
+      type: "set-metronome",
+      payload: { bpm: metronome.bpm.get(), beats: metronome.beats.get() },
+    });
   },
-  "room-joined": (data) => {
+  "room-joined": (con, payload) => {
     role.set("member");
-    id.set(data.payload.roomId);
+    id.set(payload.roomId);
+    state.set("online");
   },
-  "set-metronome": (data) => {
-    metronome.bpm.set(data.payload.bpm);
-    metronome.beats.set(data.payload.beats);
+  "set-metronome": (con, payload) => {
+    metronome.bpm.set(payload.bpm);
+    metronome.beats.set(payload.beats);
   },
-  "play-schedule": (data) => {
-    metronome.play(data.payload.at);
+  "play-schedule": (con, payload) => {
+    metronome.play(payload.at);
   },
   "play-halt": () => {
     metronome.stop();
   },
-  error: (data) => {
-    console.log(data);
-  },
   "promote-owner": () => {
     role.set("owner");
   },
-} satisfies {
-  [key in WSResponse["type"]]: (data: WSResponse & { type: key }) => unknown;
+  error: (con, payload) => {
+    _errorCases[payload.code](con, payload.message);
+    con.close();
+  },
 };
 
 function connect(roomId?: string) {
@@ -64,18 +105,8 @@ function connect(roomId?: string) {
     query: roomId ? { id: roomId } : {},
   });
 
-  con.on("open", () => {
-    state.set("online");
-    con.send({
-      type: "set-metronome",
-      payload: {
-        bpm: metronome.bpm.get(),
-        beats: metronome.beats.get(),
-      },
-    });
-  });
   con.on("message", ({ data }) => {
-    _cases[data.type](data as unsafe_any);
+    _messageCases[data.type](con, data as unsafe_any);
   });
   con.on("error", () => {
     con.close();
@@ -85,6 +116,7 @@ function connect(roomId?: string) {
     role.set("owner");
     id.set(null);
     _close = () => {};
+    _send = (_: WSRequest) => {};
   });
 
   _close = () => con.close();
@@ -108,6 +140,7 @@ function send(message: WSRequest) {
 export const room = {
   state,
   role,
+  error,
   id,
   connect,
   leave,

@@ -110,8 +110,8 @@ export default function App() {
                 </div>
               ) : null}
             </h2>
-            {state === "online" ? (
-              <div className="text-center">
+            <div className="text-center">
+              {state === "online" ? (
                 <input
                   className="input input-ghost h-12 text-center text-4xl"
                   type="text"
@@ -119,8 +119,15 @@ export default function App() {
                   pattern="[0-9]*"
                   value={roomId ?? ""}
                 />
-              </div>
-            ) : null}
+              ) : null}
+              {state !== "connecting" ? (
+                <input
+                  className="input input-ghost text-base-content h-12 text-center text-xl"
+                  type="text"
+                  value="Connecting..."
+                />
+              ) : null}
+            </div>
             <div className="text-center">
               {state === "online" ? (
                 <div className="join mt-2 w-72 max-w-full justify-center">
