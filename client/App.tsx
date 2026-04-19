@@ -1,17 +1,12 @@
 import { range } from "es-toolkit";
-import {
-  MoonIcon,
-  QrCodeIcon,
-  SunIcon,
-  SunMoonIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
-import { useRef } from "react";
+import { MoonIcon, QrCodeIcon, SunIcon, SunMoonIcon } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { BeatCard } from "./components/BeatCard";
 import { BeatDot } from "./components/BeatDot";
 import { BpmCard } from "./components/BpmCard";
 import { Card, CardBody } from "./components/Card";
 import { CopyButton } from "./components/CopyButton";
+import { QrcodeSvg } from "./components/QrcodeSvg";
 import { SavedMetronomeStatesCard } from "./components/SavedMetronomeStatesCard";
 import { ViewLatencyOffsetCard } from "./components/ViewLatencyCard";
 import { SubscribeAtom, useAtom } from "./lib/atom";
@@ -21,6 +16,14 @@ import { nextTheme, theme } from "./lib/theme";
 import { cn } from "./lib/utils";
 
 export default function App() {
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const roomId = url.searchParams.get("roomId");
+    if (roomId) {
+      room.connect(roomId);
+    }
+  }, []);
+
   /**
    * metronome state
    */
@@ -33,6 +36,7 @@ export default function App() {
   /**
    * room state
    */
+  const [error] = useAtom(room.error);
   const [role] = useAtom(room.role);
   const [state] = useAtom(room.state);
   const [roomId] = useAtom(room.id);
@@ -111,20 +115,21 @@ export default function App() {
               ) : null}
             </h2>
             <div className="text-center">
+              {error ? <p className="text-error text-lg">{error}</p> : null}
               {state === "online" ? (
                 <input
                   className="input input-ghost h-12 text-center text-4xl"
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  value={roomId ?? ""}
+                  defaultValue={roomId ?? ""}
                 />
               ) : null}
-              {state !== "connecting" ? (
+              {state === "connecting" ? (
                 <input
                   className="input input-ghost text-base-content h-12 text-center text-xl"
                   type="text"
-                  value="Connecting..."
+                  defaultValue="Connecting..."
                 />
               ) : null}
             </div>
@@ -227,13 +232,10 @@ export default function App() {
         <div className="modal-box space-y-2">
           <h2 className="text-center text-lg font-bold">Link QR Code</h2>
           <div className="text-center">
-            <span className="skeleton bg-base-200 inline-block h-72 w-72 max-w-full p-4">
-              <p className="text-center">
-                <TriangleAlertIcon className="inline-block size-8" /> <br />
-                준비 중 입니다. <br />
-                Preparing...
-              </p>
-            </span>
+            <QrcodeSvg
+              className="inline-block max-w-72"
+              src={`${window.location.origin}?roomId=${roomId}`}
+            />
           </div>
           <p className="text-center text-sm text-gray-500">
             Scan QR code to join
