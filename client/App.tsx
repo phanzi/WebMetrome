@@ -71,7 +71,10 @@ export default function App() {
 
         <Card className="sticky top-4 z-10 flex-row shadow-lg">
           <div className="flex w-full p-4">
-            <BeatDot className="w-0 border-0 outline-0" variant="accent" />
+            <BeatDot
+              className="w-0 border-0 outline-0"
+              variant="accent"
+            ></BeatDot>
             <div
               className={cn(
                 "flex w-full items-center justify-center gap-2",
@@ -85,7 +88,9 @@ export default function App() {
                   key={i}
                   variant={i === 0 ? "accent" : "regular"}
                   state={beatIndex === i ? "active" : "inactive"}
-                />
+                >
+                  {beats <= 10 ? i + 1 : ""}
+                </BeatDot>
               ))}
             </div>
           </div>
