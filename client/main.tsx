@@ -1,6 +1,7 @@
+import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { createRoot } from "react-dom/client";
-import App from "./App.js";
 import "./index.css";
+import { routeTree } from "./routeTree.gen";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -10,4 +11,15 @@ if (!rootElement) {
   throw new Error("Failed to find the root element");
 }
 
-createRoot(rootElement).render(<App />);
+const router = createRouter({ routeTree });
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}
+
+if (!rootElement.innerHTML) {
+  const root = createRoot(rootElement);
+  root.render(<RouterProvider router={router} />);
+}

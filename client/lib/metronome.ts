@@ -61,6 +61,7 @@ function play(startedAt: number = Date.now()) {
 function stop() {
   room.send({
     type: "play-halt",
+    payload: {},
   });
   cancelAnimationFrame(_timer);
   beatIndex.set(-1);

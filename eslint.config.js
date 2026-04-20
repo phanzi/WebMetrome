@@ -91,4 +91,9 @@ export default defineConfig([
       "no-unused-vars": "off",
     },
   },
+  {
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
 ]);

@@ -78,7 +78,7 @@ describe("RoomService", () => {
     });
     expect(set.success).toBe(true);
 
-    const scheduled = service.setPlay(host.id, 123_456);
+    const scheduled = service.play(host.id, 123_456);
     expect(scheduled.success).toBe(true);
 
     const lateJoin = service.joinRoom(late, created.data.id);
@@ -112,7 +112,7 @@ describe("RoomService", () => {
       expect(unauthorizedSet.code).toBe("UNAUTHORIZED");
     }
 
-    const unauthorizedSchedule = service.setPlay(member.id, Date.now());
+    const unauthorizedSchedule = service.play(member.id, Date.now());
     expect(unauthorizedSchedule.success).toBe(false);
     if (!unauthorizedSchedule.success) {
       expect(unauthorizedSchedule.code).toBe("UNAUTHORIZED");

@@ -2,9 +2,9 @@ import { DEFAULT_BEATS, DEFAULT_BPM } from "@/constants";
 import { Fail, Ok } from "@server/shared/result";
 import { nanoid } from "nanoid";
 import {
-  ROOM_ID_GENERATE_ATTEMPTS,
-  ROOM_ID_LENGTH,
-  ROOM_ID_REGEX,
+  READY_ROOM_TIMEOUT_MS,
+  ROOM_ID_GENERATE_STEPS,
+  ROOM_ID_MIN_LENGTH,
 } from "./constants";
 
 interface IWebSocket<T> {
@@ -16,7 +16,12 @@ type MetronomeState = {
   beats: number;
 };
 
-type Room<T extends { type: string }> = {
+type ReadyRoom = {
+  id: string;
+  timer: NodeJS.Timeout;
+};
+
+type MatureRoom<T extends { type: string }> = {
   id: string;
   metronome: MetronomeState;
   lastPlayAt: number | null;
@@ -26,77 +31,83 @@ type Room<T extends { type: string }> = {
 
 export class RoomService<T extends { type: string }> {
   constructor(
-    private readonly rooms = new Map<string, Room<T>>(),
-    public readonly wsId2RoomId = new Map<string, string>(),
+    private readonly readyRooms = new Map<string, ReadyRoom>(),
+    private readonly matureRooms = new Map<string, MatureRoom<T>>(),
+    private readonly wsId2RoomId = new Map<string, string>(),
   ) {}
 
   private createRoomId() {
-    for (let attempt = 0; attempt < ROOM_ID_GENERATE_ATTEMPTS; attempt += 1) {
-      const id = nanoid(ROOM_ID_LENGTH);
-      if (!this.rooms.has(id)) {
-        return Ok(id);
-      }
-    }
-    return Fail("FAILED_TO_CREATE_ROOM_ID");
+    let id = "";
+    let attempts = 0;
+
+    do {
+      attempts += 1;
+      const moreLength = Math.floor(attempts / ROOM_ID_GENERATE_STEPS);
+      id = nanoid(ROOM_ID_MIN_LENGTH + moreLength);
+    } while (this.readyRooms.has(id) || this.matureRooms.has(id));
+
+    return id;
   }
 
-  private resolveRoom(wsId: string) {
+  private resolveMatureRoom(wsId: string) {
     const roomId = this.wsId2RoomId.get(wsId);
     if (!roomId) {
-      return Fail("ROOM_NOT_FOUND", "No joined room");
+      return Fail("ROOM_NOT_FOUND", "Room connected not found");
     }
-    const room = this.rooms.get(roomId);
+    const room = this.matureRooms.get(roomId);
     if (!room) {
       return Fail("ROOM_NOT_FOUND", "Maybe wsId2RoomId is broken");
     }
     return Ok(room);
   }
 
-  public createRoom(ws: IWebSocket<T>) {
-    const room = this.resolveRoom(ws.id);
-    if (room.success) {
-      return Fail("ALREADY_CREATED");
-    }
+  public readyRoom() {
+    const roomId = this.createRoomId();
 
-    const id = this.createRoomId();
-    if (!id.success) {
-      return id;
-    }
-    this.wsId2RoomId.set(ws.id, id.data);
-    this.rooms.set(id.data, {
-      id: id.data,
-      metronome: {
-        bpm: DEFAULT_BPM,
-        beats: DEFAULT_BEATS,
-      },
-      lastPlayAt: null,
-      members: new Map(),
-      owner: ws,
+    this.readyRooms.set(roomId, {
+      id: roomId,
+      timer: setTimeout(() => {
+        this.readyRooms.delete(roomId);
+      }, READY_ROOM_TIMEOUT_MS),
     });
-    return Ok({ id: id.data });
+
+    return roomId;
   }
 
   public joinRoom(ws: IWebSocket<T>, roomId: string) {
-    const resolvedRoom = this.resolveRoom(ws.id);
-    if (resolvedRoom.success) {
-      return Fail("ALREADY_JOINED", "Already joined any room");
+    const readyRoom = this.readyRooms.get(roomId);
+    if (readyRoom) {
+      clearTimeout(readyRoom.timer);
+      this.readyRooms.delete(readyRoom.id);
+
+      const room: MatureRoom<T> = {
+        id: roomId,
+        metronome: {
+          bpm: DEFAULT_BPM,
+          beats: DEFAULT_BEATS,
+        },
+        lastPlayAt: null,
+        members: new Map(),
+        owner: ws,
+      };
+
+      this.wsId2RoomId.set(ws.id, roomId);
+      this.matureRooms.set(roomId, room);
+      return Ok({ room });
     }
-    if (!ROOM_ID_REGEX.test(roomId)) {
-      return Fail("INVALID_ROOM_ID");
-    }
-    const room = this.rooms.get(roomId);
+
+    const room = this.matureRooms.get(roomId);
     if (!room) {
-      return Fail("ROOM_NOT_FOUND", "Invalid room id");
+      return Fail("ROOM_NOT_FOUND", "Room not found");
     }
 
     this.wsId2RoomId.set(ws.id, roomId);
     room.members.set(ws.id, ws);
-
     return Ok({ room });
   }
 
   public leaveRoom(wsId: string) {
-    const room = this.resolveRoom(wsId);
+    const room = this.resolveMatureRoom(wsId);
     if (!room.success) {
       return room;
     }
@@ -110,7 +121,7 @@ export class RoomService<T extends { type: string }> {
     }
     const newOwner = room.data.members.values().next().value;
     if (!newOwner) {
-      this.rooms.delete(room.data.id);
+      this.matureRooms.delete(room.data.id);
       return Ok({
         type: "room-closed",
       });
@@ -123,45 +134,14 @@ export class RoomService<T extends { type: string }> {
     });
   }
 
-  public setMetronomeState(wsId: string, metronome: MetronomeState) {
-    const room = this.resolveRoom(wsId);
+  public checkMessagable(wsId: string) {
+    const room = this.resolveMatureRoom(wsId);
     if (!room.success) {
       return room;
     }
     if (room.data.owner.id !== wsId) {
-      return Fail("UNAUTHORIZED", "Only owner can set metronome state");
+      return Fail("UNAUTHORIZED", "Only owner can message");
     }
-    room.data.metronome = metronome;
-    return Ok({
-      roomId: room.data.id,
-    });
-  }
-
-  public setPlay(wsId: string, at: number) {
-    const room = this.resolveRoom(wsId);
-    if (!room.success) {
-      return room;
-    }
-    if (room.data.owner.id !== wsId) {
-      return Fail("UNAUTHORIZED", "Only owner can set play");
-    }
-    room.data.lastPlayAt = at;
-    return Ok({
-      roomId: room.data.id,
-    });
-  }
-
-  public haltPlay(wsId: string) {
-    const room = this.resolveRoom(wsId);
-    if (!room.success) {
-      return room;
-    }
-    if (room.data.owner.id !== wsId) {
-      return Fail("UNAUTHORIZED", "Only owner can halt play");
-    }
-    room.data.lastPlayAt = null;
-    return Ok({
-      roomId: room.data.id,
-    });
+    return room;
   }
 }
