@@ -46,8 +46,14 @@ export function toPersisted<T>(key: string, atom: Atom<T>) {
 export function useAtom<T>(atom: Atom<T>) {
   const value = useSyncExternalStore(atom.subscribe, atom.get);
 
-  const changeValue = (newValue: T) => {
-    atom.set(newValue);
+  const changeValue = (updater: T | ((prev: T) => T)) => {
+    if (typeof updater === "function") {
+      const safeUpdater = updater as (prev: T) => T;
+      const state = safeUpdater(value);
+      atom.set(state);
+    } else {
+      atom.set(updater);
+    }
   };
 
   return [value, changeValue] as const;

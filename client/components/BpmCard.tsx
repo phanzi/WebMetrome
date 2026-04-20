@@ -1,5 +1,5 @@
 import { DEFAULT_BPM, MAX_BPM, MIN_BPM } from "@/constants";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardBody } from "./Card";
 
 type Props = {
@@ -13,6 +13,7 @@ export function BpmCard(props: Props) {
   const { bpm, onChange, disabled = false, className = "" } = props;
 
   const [displayBpm, setDisplayBpm] = useState(bpm);
+  const tapTime = useRef<number>(undefined);
 
   useEffect(() => {
     setDisplayBpm(bpm);
@@ -30,24 +31,44 @@ export function BpmCard(props: Props) {
     onChange?.(DEFAULT_BPM);
   };
 
+  const handleTapBpm = () => {
+    if (tapTime.current === undefined) {
+      tapTime.current = Date.now();
+    } else {
+      const now = Date.now();
+      const elapsed = now - tapTime.current;
+      const bpm = Math.round(60_000 / elapsed);
+      setDisplayBpm(bpm);
+      onChange?.(bpm);
+      tapTime.current = now;
+    }
+  };
+
   return (
     <Card className={className}>
       <CardBody>
         <h2 className="card-title justify-center">BPM</h2>
-        <div className="text-center">
+        <div className="relative flex items-center justify-center gap-2 text-center">
           <input
             className="input input-ghost text-center text-5xl"
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
+            name="bpm"
             value={displayBpm}
             disabled={disabled}
             onChange={handleChangeBefore()}
             onDoubleClick={handleDoubleClick}
             onBlur={handleChangeBefore(onChange)}
           />
+          <button
+            className="btn btn-soft btn-primary absolute top-0 right-1"
+            onClick={handleTapBpm}
+          >
+            TAP
+          </button>
         </div>
-        <div className="mt-3 text-center">
+        <div className="relative mt-3 text-center">
           <input
             className="range range-primary"
             type="range"
@@ -58,6 +79,12 @@ export function BpmCard(props: Props) {
             onChange={handleChangeBefore()}
             onBlur={handleChangeBefore(onChange)}
           />
+          {/* <button
+            className="btn btn-soft btn-primary absolute right-0 bottom-[calc(100%+1rem)]"
+            onClick={handleTapBpm}
+          >
+            TAP
+          </button> */}
         </div>
       </CardBody>
     </Card>
