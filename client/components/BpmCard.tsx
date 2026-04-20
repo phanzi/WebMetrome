@@ -1,4 +1,5 @@
 import { DEFAULT_BPM, MAX_BPM, MIN_BPM } from "@/constants";
+import { getAudioContext, scheduleSound } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { Card, CardBody } from "./Card";
 
@@ -12,6 +13,7 @@ type Props = {
 export function BpmCard(props: Props) {
   const { bpm, onChange, disabled = false, className = "" } = props;
 
+  const audioCtx = useRef(getAudioContext());
   const [displayBpm, setDisplayBpm] = useState(bpm);
   const tapTime = useRef<number>(undefined);
 
@@ -32,16 +34,13 @@ export function BpmCard(props: Props) {
   };
 
   const handleTapBpm = () => {
-    if (tapTime.current === undefined) {
-      tapTime.current = Date.now();
-    } else {
-      const now = Date.now();
-      const elapsed = now - tapTime.current;
-      const bpm = Math.round(60_000 / elapsed);
-      setDisplayBpm(bpm);
-      onChange?.(bpm);
-      tapTime.current = now;
-    }
+    scheduleSound(audioCtx.current, "REGULAR", audioCtx.current.currentTime);
+    const now = Date.now();
+    const elapsed = Math.max(1, now - (tapTime.current ?? now));
+    const bpm = Math.round(60_000 / elapsed);
+    setDisplayBpm(bpm);
+    onChange?.(bpm);
+    tapTime.current = now;
   };
 
   return (
@@ -79,12 +78,6 @@ export function BpmCard(props: Props) {
             onChange={handleChangeBefore()}
             onBlur={handleChangeBefore(onChange)}
           />
-          {/* <button
-            className="btn btn-soft btn-primary absolute right-0 bottom-[calc(100%+1rem)]"
-            onClick={handleTapBpm}
-          >
-            TAP
-          </button> */}
         </div>
       </CardBody>
     </Card>
