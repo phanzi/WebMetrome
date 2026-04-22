@@ -4,7 +4,6 @@
 const config = {
   trailingComma: "all",
   plugins: [
-    "prettier-plugin-curly",
     "@trivago/prettier-plugin-sort-imports",
     "prettier-plugin-organize-imports",
     "prettier-plugin-tailwindcss-canonical-classes",

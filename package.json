@@ -10,7 +10,7 @@
     "dev:vite": "vite dev",
     "dev:server": "APP_ENV=development bun --watch server/index.ts",
     "build": "bun run build:vite && bun run build:server",
-    "build:vite": "vite build",
+    "build:vite": "vite build --host",
     "build:server": "bun build server/index.ts --compile --outfile=out/server",
     "start": "./out/server",
     "format": "prettier --write .",
@@ -36,7 +36,6 @@
     "daisyui": "^5.5.19",
     "elysia": "^1.4.0",
     "es-toolkit": "^1.45.1",
-    "jotai": "^2.19.1",
     "lucide-react": "^1.8.0",
     "nanoid": "^5.1.7",
     "react": "^19.2.4",
@@ -45,7 +44,6 @@
     "tailwindcss": "^4.2.2",
     "uqr": "^0.1.3",
     "vite": "^8.0.7",
-    "xstate": "^5.30.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
