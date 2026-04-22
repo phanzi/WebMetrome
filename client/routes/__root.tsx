@@ -9,10 +9,11 @@ import { metronome } from "@/lib/metronome";
 import { room } from "@/lib/room";
 import { nextTheme, theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { createRootRoute, Outlet } from "@tanstack/react-router";
-import { range } from "es-toolkit";
+import { createRootRoute, Outlet, useMatch } from "@tanstack/react-router";
+import { debounce, range } from "es-toolkit";
 import { MoonIcon, SunIcon, SunMoonIcon, UnplugIcon } from "lucide-react";
 
+// TODO: not found page 추가
 export const Route = createRootRoute({
   component: RootLayout,
 });
@@ -23,23 +24,88 @@ function RootLayout() {
    */
   const [bpm, setBpm] = useAtom(metronome.bpm);
   const [beats, setBeats] = useAtom(metronome.beats);
+  const [subDivision, setSubDivision] = useAtom(metronome.subDivision);
   const [beatIndex] = useAtom(metronome.beatIndex);
   const [offset, setOffset] = useAtom(metronome.offset);
   const [isPlaying] = useAtom(metronome.isPlaying);
 
-  //   const [error] = useAtom(room.error);
+  /**
+   * room state
+   */
   const [role] = useAtom(room.role);
-  const [state] = useAtom(room.state);
+  const match = useMatch({ from: "/rooms/$roomId", shouldThrow: false });
 
+  const handleSetBpm = (bpm: number) => {
+    setBpm(bpm);
+    if (room.state.get() === "online") {
+      room.send({
+        type: "set-metronome",
+        payload: {
+          bpm,
+          beats,
+          subDivision,
+        },
+      });
+    }
+  };
+  const handleSetBeats = (beats: number) => {
+    setBeats(beats);
+    if (room.state.get() === "online") {
+      room.send({
+        type: "set-metronome",
+        payload: {
+          bpm,
+          beats,
+          subDivision,
+        },
+      });
+    }
+  };
+  const handleSetSubDivision = (
+    subDivision: ReturnType<typeof metronome.subDivision.get>,
+  ) => {
+    setSubDivision(subDivision);
+    if (room.state.get() === "online") {
+      room.send({
+        type: "set-metronome",
+        payload: {
+          bpm,
+          beats,
+          subDivision,
+        },
+      });
+    }
+  };
   const togglePlay = () => {
     if (isPlaying) {
       metronome.stop();
+      if (room.state.get() === "online") {
+        room.send({
+          type: "play-halt",
+          payload: {},
+        });
+      }
     } else {
-      metronome.play();
+      if (room.state.get() === "online") {
+        room.send({
+          type: "play-schedule",
+          payload: {
+            at: Date.now(),
+            state: {
+              bpm,
+              beats,
+              subDivision,
+            },
+          },
+        });
+      } else {
+        metronome.play(Date.now());
+      }
     }
   };
 
-  const editDisabled = isPlaying || (state === "online" && role !== "owner");
+  const isOnline = match?.status === "success";
+  const editDisabled = isPlaying || (isOnline && role !== "owner");
 
   return (
     <div className="mx-auto min-h-screen max-w-md space-y-4 py-4 font-sans">
@@ -103,14 +169,24 @@ function RootLayout() {
         </div>
       </Card>
 
-      <BpmCard bpm={bpm} onChange={setBpm} disabled={editDisabled} />
-      <BeatCard beats={beats} onChange={setBeats} disabled={editDisabled} />
+      <BpmCard
+        bpm={bpm}
+        onChange={debounce(handleSetBpm, 300)}
+        disabled={editDisabled}
+      />
+      <BeatCard
+        beats={beats}
+        onBeatsChange={handleSetBeats}
+        subDivision={subDivision}
+        onSubDivisionChange={handleSetSubDivision}
+        disabled={editDisabled}
+      />
       <ViewLatencyOffsetCard offset={offset} onChange={setOffset} />
       <SavedMetronomeStatesCard
         state={{ bpm, beats }}
         onLoad={({ bpm, beats }) => {
-          setBpm(bpm);
-          setBeats(beats);
+          handleSetBpm(bpm);
+          handleSetBeats(beats);
         }}
         disabled={editDisabled}
       />
@@ -121,7 +197,7 @@ function RootLayout() {
           isPlaying ? "btn-warning" : "btn-primary",
         )}
         onClick={togglePlay}
-        disabled={state === "online" && role !== "owner"}
+        disabled={isOnline && role !== "owner"}
       >
         {isPlaying ? "STOP" : "START"}
       </button>

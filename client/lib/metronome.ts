@@ -1,7 +1,11 @@
-import { DEFAULT_BEATS, DEFAULT_BPM, STORAGE_KEYS } from "@/constants";
-import { getAudioContext, scheduleSound } from "@/lib/utils";
+import {
+  DEFAULT_BEATS,
+  DEFAULT_BPM,
+  DEFAULT_SUB_DIVISION,
+  STORAGE_KEYS,
+} from "@/constants";
 import { atom, toPersisted } from "./atom";
-import { room } from "./room";
+import { getAudioContext, scheduleSound, SOUND_PRESETS } from "./sound";
 
 export type MetronomeState = {
   bpm: number;
@@ -10,6 +14,10 @@ export type MetronomeState = {
 
 const bpm = toPersisted(STORAGE_KEYS.bpm, atom(DEFAULT_BPM));
 const beats = toPersisted(STORAGE_KEYS.beats, atom(DEFAULT_BEATS));
+const subDivision = toPersisted(
+  STORAGE_KEYS.subDivision,
+  atom<"quater" | "quavers" | "triplet" | "semiquavers">(DEFAULT_SUB_DIVISION),
+);
 const beatIndex = atom(-1);
 const offset = toPersisted(STORAGE_KEYS.offset, atom(0));
 const isPlaying = atom(false);
@@ -18,51 +26,74 @@ let _nextNoteSec = 0;
 let _beatCounter = -1;
 let _timer = -1;
 
+function _scheduleBeat(
+  ctx: AudioContext,
+  presetKey: keyof typeof SOUND_PRESETS,
+  beatAt: number,
+) {
+  scheduleSound(ctx, presetKey, beatAt + offset.get() / 1000);
+}
+
+function _scheduleNote(
+  ctx: AudioContext,
+  presetKey: keyof typeof SOUND_PRESETS,
+  noteAtSec: number,
+) {
+  switch (subDivision.get()) {
+    case "quater":
+      _scheduleBeat(ctx, presetKey, noteAtSec);
+      break;
+    case "quavers":
+      _scheduleBeat(ctx, presetKey, noteAtSec);
+      _scheduleBeat(ctx, "SUB", noteAtSec + 30 / bpm.get());
+      break;
+    case "triplet":
+      _scheduleBeat(ctx, presetKey, noteAtSec);
+      _scheduleBeat(ctx, "SUB", noteAtSec + 20 / bpm.get());
+      _scheduleBeat(ctx, "SUB", noteAtSec + 40 / bpm.get());
+      break;
+    case "semiquavers":
+      _scheduleBeat(ctx, presetKey, noteAtSec);
+      _scheduleBeat(ctx, "SUB", noteAtSec + 15 / bpm.get());
+      _scheduleBeat(ctx, "SUB", noteAtSec + 30 / bpm.get());
+      _scheduleBeat(ctx, "SUB", noteAtSec + 45 / bpm.get());
+      break;
+  }
+}
+
 function _schedule(ctx: AudioContext) {
   // Look-ahead: 100ms 앞의 박자를 미리 예약
   while (_nextNoteSec < ctx.currentTime + 0.1) {
     _beatCounter++;
     const isFirstBeat = _beatCounter % beats.get() === 0;
-    scheduleSound(
-      ctx,
-      isFirstBeat ? "ACCENT" : "REGULAR",
-      _nextNoteSec + offset.get() / 1000,
-    );
+    _scheduleNote(ctx, isFirstBeat ? "ACCENT" : "REGULAR", _nextNoteSec);
 
-    _nextNoteSec += 60.0 / bpm.get();
+    _nextNoteSec += 60 / bpm.get();
     beatIndex.set(_beatCounter % beats.get());
   }
 
   _timer = requestAnimationFrame(() => _schedule(ctx));
 }
 
-function play(startedAt: number = Date.now()) {
-  room.send({
-    type: "play-schedule",
-    payload: {
-      at: startedAt,
-    },
-  });
+async function play(startedAt: number) {
+  const ctx = await getAudioContext();
+  if (isPlaying.get()) return;
   isPlaying.set(true);
-  const diffMs = Math.min(0, Date.now() - startedAt);
-  if (diffMs < 50) {
-    _beatCounter = -1;
-    _nextNoteSec = (50 - diffMs) / 1000;
-  } else {
-    const bpmMs = 60_000 / bpm.get();
-    _beatCounter = Math.floor((diffMs - 50) / bpmMs);
-    _nextNoteSec = 50 + (_beatCounter + 1) * bpmMs - diffMs;
-  }
 
-  const ctx = getAudioContext();
+  const now = Date.now();
+  const diffMs = now - startedAt;
+  const bpmMs = 60_000 / bpm.get();
+  _beatCounter = Math.floor((diffMs - 50) / bpmMs);
+  _nextNoteSec = (50 + (_beatCounter + 1) * bpmMs - diffMs) / 1000;
+
+  _nextNoteSec += ctx.currentTime;
   _schedule(ctx);
 }
 
-function stop() {
-  room.send({
-    type: "play-halt",
-    payload: {},
-  });
+async function stop() {
+  if (!isPlaying.get()) return;
+  const ctx = await getAudioContext();
+  ctx.suspend();
   cancelAnimationFrame(_timer);
   beatIndex.set(-1);
   isPlaying.set(false);
@@ -71,28 +102,10 @@ function stop() {
 export const metronome = {
   bpm,
   beats,
+  subDivision,
   beatIndex,
   offset,
   isPlaying,
   play,
   stop,
 };
-
-bpm.subscribe(() => {
-  room.send({
-    type: "set-metronome",
-    payload: {
-      bpm: bpm.get(),
-      beats: beats.get(),
-    },
-  });
-});
-beats.subscribe(() => {
-  room.send({
-    type: "set-metronome",
-    payload: {
-      bpm: bpm.get(),
-      beats: beats.get(),
-    },
-  });
-});

@@ -17,6 +17,9 @@ function RouteComponent() {
 
   const handleJoinSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError("");
+    setJoinError("");
+
     const formData = new FormData(e.target);
     const roomId = formData.get("room-id")?.toString();
     if (!roomId) {
@@ -31,7 +34,6 @@ function RouteComponent() {
       setJoinError("Room ID contains invalid characters");
       return;
     }
-    setJoinError("");
     e.target.reset();
     joinModalRef.current?.close();
     navigate({
@@ -44,6 +46,8 @@ function RouteComponent() {
 
   const handleShareClick = async () => {
     setError("");
+    setJoinError("");
+
     const roomId = await room.create();
     if (!roomId.data) {
       setError("Try again later");

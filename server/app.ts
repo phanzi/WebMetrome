@@ -13,12 +13,20 @@ const messageSchema = z.union([
     payload: z.object({
       bpm: z.number(),
       beats: z.number(),
+      subDivision: z.enum(["quater", "quavers", "triplet", "semiquavers"]),
     }),
   }),
   z.object({
     type: z.literal("play-schedule"),
     payload: z.object({
-      at: z.number(), // ms Unix timestamp
+      // ms Unix timestamp
+      at: z.number(),
+      // metronome state
+      state: z.object({
+        bpm: z.number(),
+        beats: z.number(),
+        subDivision: z.enum(["quater", "quavers", "triplet", "semiquavers"]),
+      }),
     }),
   }),
   z.object({
@@ -32,6 +40,7 @@ const responseSchema = messageSchema.or(
     z.object({
       type: z.literal("room-joined"),
       payload: z.object({
+        now: z.number(),
         roomId: z.string(),
         role: z.literal(["owner", "member"]),
       }),
@@ -57,8 +66,10 @@ export function createApp() {
 
   return new Elysia()
     .post("/rooms", () => roomService.readyRoom())
-    .ws("/rooms", {
+    .guard({
       query: querySchema,
+    })
+    .ws("/rooms", {
       body: messageSchema,
       response: responseSchema,
       open(ws) {
@@ -79,6 +90,7 @@ export function createApp() {
         ws.send({
           type: "room-joined",
           payload: {
+            now: Date.now(),
             roomId: roomId,
             role: joined.data.room.owner.id === ws.id ? "owner" : "member",
           },
@@ -94,6 +106,7 @@ export function createApp() {
             type: "play-schedule",
             payload: {
               at: joined.data.room.lastPlayAt,
+              state: joined.data.room.metronome,
             },
           });
         }
@@ -117,7 +130,11 @@ export function createApp() {
             room.metronome = message.payload;
             break;
           case "play-schedule":
-            room.lastPlayAt = message.payload.at;
+            const now = Date.now();
+            room.lastPlayAt = now;
+            room.metronome = message.payload.state;
+            message.payload.at = now;
+            ws.send(message);
             break;
           case "play-halt":
             room.lastPlayAt = null;

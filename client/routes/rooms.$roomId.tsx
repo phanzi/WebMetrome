@@ -4,11 +4,15 @@ import { QrcodeSvg } from "@/components/QrcodeSvg";
 import { useAtom } from "@/lib/atom";
 import { room } from "@/lib/room";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { delay } from "es-toolkit";
 import { QrCodeIcon } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 export const Route = createFileRoute("/rooms/$roomId")({
-  loader: ({ params }) => room.join(params.roomId),
+  loader: async ({ params }) => {
+    await delay(1000 * 0.5);
+    return await room.join(params.roomId);
+  },
   staleTime: 0,
   gcTime: 0,
   component: RouteComponent,
@@ -55,9 +59,17 @@ function PendingComponent() {
 function RouteComponent() {
   const [error] = useAtom(room.error);
   const [role] = useAtom(room.role);
-  const { roomId } = Route.useParams();
+  const [state] = useAtom(room.state);
 
+  const { roomId } = Route.useParams();
+  const navigate = Route.useNavigate();
   const qrCodeModalRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    if (state !== "online") {
+      navigate({ to: "/", replace: true });
+    }
+  }, [state, navigate]);
 
   return (
     <Card>

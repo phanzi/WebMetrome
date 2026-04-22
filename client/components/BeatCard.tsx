@@ -1,19 +1,61 @@
+import QuaterImage from "@/assets/note/quater.svg";
+import QuaversImage from "@/assets/note/quavers.svg";
+import SemiquaversImage from "@/assets/note/semiquavers.svg";
+import TripletImage from "@/assets/note/triplet.svg";
 import { ALLOWED_BEATS, DEFAULT_BEATS } from "@/constants";
+import { useAtom } from "@/lib/atom";
+import { metronome } from "@/lib/metronome";
+import { theme as colorTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { Card, CardBody } from "./Card";
 
 type Props = {
   beats: number;
-  onChange: (beats: number) => void;
+  onBeatsChange: (beats: number) => void;
+  subDivision: ReturnType<typeof metronome.subDivision.get>;
+  onSubDivisionChange: (
+    subDivision: ReturnType<typeof metronome.subDivision.get>,
+  ) => void;
   disabled?: boolean;
   className?: string;
 };
 
+const SUB_DIVISIONS: {
+  label: ReturnType<typeof metronome.subDivision.get>;
+  image: string;
+}[] = [
+  {
+    label: "quater",
+    image: QuaterImage,
+  },
+  {
+    label: "quavers",
+    image: QuaversImage,
+  },
+  {
+    label: "triplet",
+    image: TripletImage,
+  },
+  {
+    label: "semiquavers",
+    image: SemiquaversImage,
+  },
+];
+
 export function BeatCard(props: Props) {
-  const { beats, onChange, disabled = false, className = "" } = props;
+  const {
+    beats,
+    onBeatsChange,
+    subDivision,
+    onSubDivisionChange,
+    disabled = false,
+    className = "",
+  } = props;
+
+  const [theme] = useAtom(colorTheme);
 
   const handleDoubleClick = () => {
-    onChange(DEFAULT_BEATS);
+    onBeatsChange(DEFAULT_BEATS);
   };
 
   return (
@@ -28,7 +70,7 @@ export function BeatCard(props: Props) {
             pattern="[0-9]*"
             value={beats}
             disabled={disabled}
-            onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+            onChange={(e) => onBeatsChange(parseInt(e.target.value) || 0)}
             onDoubleClick={handleDoubleClick}
           />
         </div>
@@ -40,10 +82,35 @@ export function BeatCard(props: Props) {
                 beats === b ? "btn-primary" : "bg-base-100",
               )}
               key={b}
-              onClick={() => onChange(b)}
+              onClick={() => onBeatsChange(b)}
               disabled={disabled}
             >
               {b}
+            </button>
+          ))}
+        </div>
+        <div className="join mt-2">
+          {SUB_DIVISIONS.map((s) => (
+            <button
+              className={cn(
+                "join-item btn btn-lg tooltip tooltip-bottom flex-1 p-0",
+                subDivision === s.label ? "btn-primary" : "bg-base-100",
+              )}
+              key={s.label}
+              disabled={disabled}
+              onClick={() => onSubDivisionChange(s.label)}
+              data-tip={s.label}
+            >
+              <img
+                className={cn(
+                  "h-full",
+                  theme === "light" ? "" : "dark:invert",
+                  subDivision === s.label ? "invert" : "",
+                  disabled ? "opacity-20" : "",
+                )}
+                src={s.image}
+                alt={s.label}
+              />
             </button>
           ))}
         </div>

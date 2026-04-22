@@ -1,5 +1,5 @@
 import { DEFAULT_BPM, MAX_BPM, MIN_BPM } from "@/constants";
-import { getAudioContext, scheduleSound } from "@/lib/utils";
+import { getAudioContext, scheduleSound } from "@/lib/sound";
 import { useEffect, useRef, useState } from "react";
 import { Card, CardBody } from "./Card";
 
@@ -13,7 +13,6 @@ type Props = {
 export function BpmCard(props: Props) {
   const { bpm, onChange, disabled = false, className = "" } = props;
 
-  const audioCtx = useRef(getAudioContext());
   const [displayBpm, setDisplayBpm] = useState(bpm);
   const tapTime = useRef<number>(undefined);
 
@@ -21,23 +20,22 @@ export function BpmCard(props: Props) {
     setDisplayBpm(bpm);
   }, [bpm]);
 
-  const handleChangeBefore =
-    (callback?: (bpm: number) => void) =>
-    (e: React.SyntheticEvent<HTMLInputElement>) => {
-      const parsed = parseInt(e.currentTarget.value) || 0;
-      setDisplayBpm(parsed);
-      callback?.(parsed);
-    };
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const parsed = parseInt(e.target.value) || 0;
+    setDisplayBpm(parsed);
+    onChange?.(parsed);
+  };
   const handleDoubleClick = () => {
     setDisplayBpm(DEFAULT_BPM);
     onChange?.(DEFAULT_BPM);
   };
 
-  const handleTapBpm = () => {
-    scheduleSound(audioCtx.current, "REGULAR", audioCtx.current.currentTime);
+  const handleTapBpm = async () => {
+    const ctx = await getAudioContext();
+    scheduleSound(ctx, "REGULAR", ctx.currentTime + 0.01);
     const now = Date.now();
     const elapsed = Math.max(1, now - (tapTime.current ?? now));
-    const bpm = Math.round(60_000 / elapsed);
+    const bpm = Math.min(MAX_BPM, Math.round(60_000 / elapsed));
     setDisplayBpm(bpm);
     onChange?.(bpm);
     tapTime.current = now;
@@ -56,13 +54,13 @@ export function BpmCard(props: Props) {
             name="bpm"
             value={displayBpm}
             disabled={disabled}
-            onChange={handleChangeBefore()}
+            onChange={handleChange}
             onDoubleClick={handleDoubleClick}
-            onBlur={handleChangeBefore(onChange)}
           />
           <button
             className="btn btn-soft btn-primary absolute top-0 right-1"
             onClick={handleTapBpm}
+            disabled={disabled}
           >
             TAP
           </button>
@@ -75,8 +73,7 @@ export function BpmCard(props: Props) {
             max={MAX_BPM}
             value={displayBpm}
             disabled={disabled}
-            onChange={handleChangeBefore()}
-            onBlur={handleChangeBefore(onChange)}
+            onChange={handleChange}
           />
         </div>
       </CardBody>

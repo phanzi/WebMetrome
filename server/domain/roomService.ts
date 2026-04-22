@@ -1,4 +1,4 @@
-import { DEFAULT_BEATS, DEFAULT_BPM } from "@/constants";
+import { DEFAULT_BEATS, DEFAULT_BPM, DEFAULT_SUB_DIVISION } from "@/constants";
 import { Fail, Ok } from "@server/shared/result";
 import { nanoid } from "nanoid";
 import {
@@ -14,6 +14,7 @@ interface IWebSocket<T> {
 type MetronomeState = {
   bpm: number;
   beats: number;
+  subDivision: "quater" | "quavers" | "triplet" | "semiquavers";
 };
 
 type ReadyRoom = {
@@ -85,6 +86,7 @@ export class RoomService<T extends { type: string }> {
         metronome: {
           bpm: DEFAULT_BPM,
           beats: DEFAULT_BEATS,
+          subDivision: DEFAULT_SUB_DIVISION,
         },
         lastPlayAt: null,
         members: new Map(),

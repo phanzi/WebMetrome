@@ -31,18 +31,22 @@ export async function buildServer(isDev: boolean) {
     });
 
     console.log(`📎 개발 프록시 대상(Vite): ${VITE_DEV_ORIGIN}`);
-    return server;
+  } else {
+    const STATIC_ROOT = join("out", "dist");
+
+    server
+      .use(
+        await staticPlugin({
+          assets: STATIC_ROOT,
+          prefix: "/",
+          alwaysStatic: true,
+        }),
+      )
+      .get("/*", () => Bun.file(join(STATIC_ROOT, "index.html")));
+
+    console.log(`📁 정적 파일: ${STATIC_ROOT}`);
   }
 
-  const STATIC_ROOT = join("out", "dist");
-  server.use(
-    await staticPlugin({
-      assets: STATIC_ROOT,
-      prefix: "/",
-      indexHTML: true,
-    }),
-  );
-  console.log(`📁 정적 파일: ${STATIC_ROOT}`);
   return server;
 }
 
