@@ -1,6 +1,6 @@
 {
   "name": "syncron",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": false,
   "type": "module",
   "author": "phanzi",
@@ -10,7 +10,7 @@
     "dev:vite": "vite dev",
     "dev:server": "APP_ENV=development bun --watch server/index.ts",
     "build": "bun run build:vite && bun run build:server",
-    "build:vite": "vite build --host",
+    "build:vite": "vite build",
     "build:server": "bun build server/index.ts --compile --outfile=out/server",
     "start": "./out/server",
     "format": "prettier --write .",
