@@ -1,3 +1,4 @@
+export const THEME_ATTRIBUTE = "data-theme";
 export const PLAY_DELAY_MS = 50;
 
 export const BPM = {

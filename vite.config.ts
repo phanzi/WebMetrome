@@ -33,9 +33,10 @@ export default defineConfig({
         integration: {
           outDir: "out/dist", // cwd 기준
         },
+        injectThemeColor: false,
       },
       manifest: {
-        theme_color: "#377CFB", // primary color
+        theme_color: "#377CFB", // light mode primary color
       },
     }),
   ],

@@ -1,39 +1,29 @@
+import { THEME_ATTRIBUTE } from "@/constants";
 import { atom, toPersisted } from "@/lib/atom";
 
-type Theme = "light" | "dark" | "system";
+const THEMES = ["system", "light", "dark"] as const;
 
-export const theme = toPersisted("theme", atom<Theme>("system"));
+type Theme = (typeof THEMES)[number];
+
+export const theme = toPersisted("theme", atom<Theme>(THEMES[0]));
+
+const meta = document.createElement("meta");
+meta.setAttribute("name", "theme-color");
+document.head.appendChild(meta);
 
 theme.subscribe(() => {
-  const html = document.querySelector("html");
-  if (!html) {
-    throw new Error("html element not found");
-  }
-  switch (theme.get()) {
-    case "system":
-      html.removeAttribute("data-theme");
-      break;
-    case "light":
-      html.setAttribute("data-theme", "base-light");
-      break;
-    case "dark":
-      html.setAttribute("data-theme", "base-dark");
-      break;
-    default:
-      throw new Error("Invalid theme");
-  }
+  const html = document.documentElement;
+
+  const themeValue = theme.get();
+  themeValue === "system"
+    ? html.removeAttribute(THEME_ATTRIBUTE)
+    : html.setAttribute(THEME_ATTRIBUTE, `base-${themeValue}`);
+
+  meta.setAttribute("content", getComputedStyle(html).backgroundColor);
 });
 
-window.addEventListener("DOMContentLoaded", () => {
-  theme.notify();
-});
-
-const map: Record<Theme, Theme> = {
-  system: "light",
-  light: "dark",
-  dark: "system",
-};
+theme.notify();
 
 export function nextTheme() {
-  theme.set(map[theme.get()]);
+  theme.set(THEMES[(THEMES.indexOf(theme.get()) + 1) % THEMES.length]);
 }
