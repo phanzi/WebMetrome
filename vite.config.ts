@@ -4,12 +4,12 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { join } from "node:path";
 import { defineConfig } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
 import svgr from "vite-plugin-svgr";
 
 export default defineConfig({
   root: "client",
   envDir: ".",
-  publicDir: false,
   plugins: [
     svgr(),
     tanstackRouter({
@@ -23,6 +23,21 @@ export default defineConfig({
       presets: [reactCompilerPreset()],
     }),
     tailwindcss(),
+    VitePWA({
+      registerType: "autoUpdate",
+      injectRegister: "auto",
+      devOptions: {
+        enabled: true,
+      },
+      pwaAssets: {
+        integration: {
+          outDir: "out/dist", // cwd 기준
+        },
+      },
+      manifest: {
+        theme_color: "#377CFB", // primary color
+      },
+    }),
   ],
   server: {
     port: 3000,
@@ -35,7 +50,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: join(process.cwd(), "out", "dist"),
+    outDir: "../out/dist", // vite.root 기준
     emptyOutDir: true,
   },
   resolve: {
