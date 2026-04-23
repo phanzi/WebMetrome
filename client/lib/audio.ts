@@ -63,6 +63,7 @@ export function scheduleSound(
   const osc = ctx.createOscillator();
   osc.frequency.value = hz;
   osc.addEventListener("ended", () => _activeNodes.delete(osc));
+  _activeNodes.add(osc);
 
   // Create gain node
   const gainNode = ctx.createGain();
