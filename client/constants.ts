@@ -24,7 +24,7 @@ export const SUB_DIVISION = {
 };
 
 export const VOLUME = {
-  DEFAULT: 1,
+  DEFAULT: 100,
   MIN: 0,
   MAX: 100,
   PERSIST_KEY: "ms-volume",
