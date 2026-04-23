@@ -1,4 +1,4 @@
-import js from "@eslint/js";
+import reactCompiler from "eslint-plugin-react-compiler";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import { defineConfig, globalIgnores } from "eslint/config";
@@ -15,29 +15,16 @@ export default defineConfig([
     "server/dist",
   ]),
   ...tseslint.configs.recommended,
-  {
-    files: ["**/*.{js,jsx}"],
-    extends: [
-      js.configs.recommended,
-      reactHooks.configs.flat.recommended,
-      reactRefresh.configs.vite,
-    ],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-      parserOptions: {
-        ecmaVersion: "latest",
-        ecmaFeatures: { jsx: true },
-        sourceType: "module",
-      },
-    },
-    rules: {
-      "no-unused-vars": ["error", { varsIgnorePattern: "^[A-Z_]" }],
-    },
-  },
+  /**
+   * rules for client files
+   */
   {
     files: ["client/**/*.{ts,tsx}"],
-    extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
+    extends: [
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+      reactCompiler.configs.recommended,
+    ],
     languageOptions: {
       globals: globals.browser,
       parserOptions: {
@@ -46,14 +33,10 @@ export default defineConfig([
         sourceType: "module",
       },
     },
-    rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^[A-Z_]" },
-      ],
-      "no-unused-vars": "off",
-    },
   },
+  /**
+   * rules for server files
+   */
   {
     files: ["server/**/*.ts", "scripts/**/*.ts"],
     languageOptions: {
@@ -63,14 +46,10 @@ export default defineConfig([
         sourceType: "module",
       },
     },
-    rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "error",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^[A-Z_]" },
-      ],
-      "no-unused-vars": "off",
-    },
   },
+  /**
+   * rules for test files
+   */
   {
     files: ["tests/**/*.ts"],
     languageOptions: {
@@ -83,17 +62,18 @@ export default defineConfig([
         sourceType: "module",
       },
     },
+  },
+  /**
+   * rules for all files
+   */
+  {
     rules: {
+      "react-refresh/only-export-components": "off",
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^[A-Z_]" },
       ],
       "no-unused-vars": "off",
-    },
-  },
-  {
-    rules: {
-      "react-refresh/only-export-components": "off",
     },
   },
 ]);

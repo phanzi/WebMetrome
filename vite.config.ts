@@ -1,14 +1,17 @@
+import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
-import react from "@vitejs/plugin-react";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { join } from "node:path";
 import { defineConfig } from "vite";
+import svgr from "vite-plugin-svgr";
 
 export default defineConfig({
   root: "client",
   envDir: ".",
   publicDir: false,
   plugins: [
+    svgr(),
     tanstackRouter({
       routesDirectory: "./routes",
       generatedRouteTree: "./routeTree.gen.ts",
@@ -16,6 +19,9 @@ export default defineConfig({
       autoCodeSplitting: true,
     }),
     react(),
+    babel({
+      presets: [reactCompilerPreset()],
+    }),
     tailwindcss(),
   ],
   server: {

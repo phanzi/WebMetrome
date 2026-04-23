@@ -30,8 +30,7 @@
     "tests/**/*.ts",
     "scripts/**/*.ts",
     "vite.config.ts",
-    "vite-env.d.ts",
-    "global.d.ts"
+    "vite-env.d.ts"
   ],
   "exclude": ["node_modules", "out", "dist"]
 }
