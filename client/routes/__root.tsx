@@ -127,6 +127,7 @@ function RootLayout() {
             <div className="w-[calc(var(--container-md)+--spacing(4))] max-w-full space-y-4 p-4">
               <Outlet />
               <VolumeCard />
+              <LatencyOffsetCard />
             </div>
           </div>
         </div>
@@ -182,7 +183,6 @@ function RootLayout() {
         onSubDivisionChange={handleSetSubDivision}
         disabled={editDisabled}
       />
-      <LatencyOffsetCard />
       <SavedStatesCard
         state={{ bpm, beats, subDivision }}
         onLoad={({ bpm, beats, subDivision }) => {
@@ -195,7 +195,7 @@ function RootLayout() {
 
       <button
         className={cn(
-          "btn btn-xl w-full",
+          "btn btn-xl sticky bottom-4 w-full",
           isPlaying ? "btn-warning" : "btn-primary",
         )}
         onClick={togglePlay}
