@@ -1,7 +1,7 @@
-import { DEFAULT_BPM, MAX_BPM, MIN_BPM } from "@/constants";
-import { getAudioContext, scheduleSound } from "@/lib/sound";
+import { BPM } from "@/constants";
+import { audio } from "@/lib/audio";
 import { useEffect, useRef, useState } from "react";
-import { Card, CardBody } from "./Card";
+import { Card, CardBody } from "../Card";
 
 type Props = {
   bpm: number;
@@ -26,16 +26,16 @@ export function BpmCard(props: Props) {
     onChange?.(parsed);
   };
   const handleDoubleClick = () => {
-    setDisplayBpm(DEFAULT_BPM);
-    onChange?.(DEFAULT_BPM);
+    setDisplayBpm(BPM.DEFAULT);
+    onChange?.(BPM.DEFAULT);
   };
 
   const handleTapBpm = async () => {
-    const ctx = await getAudioContext();
-    scheduleSound(ctx, "REGULAR", ctx.currentTime + 0.01);
+    const ctx = await audio.getContext();
+    audio.schedule(ctx, "REGULAR", ctx.currentTime + 0.01);
     const now = Date.now();
     const elapsed = Math.max(1, now - (tapTime.current ?? now));
-    const bpm = Math.min(MAX_BPM, Math.round(60_000 / elapsed));
+    const bpm = Math.min(BPM.MAX, Math.round(60_000 / elapsed));
     setDisplayBpm(bpm);
     onChange?.(bpm);
     tapTime.current = now;
@@ -69,8 +69,8 @@ export function BpmCard(props: Props) {
           <input
             className="range range-primary"
             type="range"
-            min={MIN_BPM}
-            max={MAX_BPM}
+            min={BPM.MIN}
+            max={BPM.MAX}
             value={displayBpm}
             disabled={disabled}
             onChange={handleChange}

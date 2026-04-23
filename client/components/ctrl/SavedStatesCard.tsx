@@ -1,10 +1,11 @@
-import { STORAGE_KEYS } from "@/constants";
+import { SAVED_STATES, SUB_DIVISION } from "@/constants";
 import { atom, toPersisted, useAtom } from "@/lib/atom";
 import type { MetronomeState } from "@/lib/metronome";
 import { cn } from "@/lib/utils";
 import { InfoIcon } from "lucide-react";
 import { useRef } from "react";
-import { Card, CardBody } from "./Card";
+import { Card, CardBody } from "../Card";
+import { NoteIcon } from "../NoteIcon";
 
 type Props = {
   state: MetronomeState;
@@ -16,13 +17,12 @@ type Props = {
 type SavedState = MetronomeState & {
   name: string;
 };
-
 const savedStatesAtom = toPersisted(
-  STORAGE_KEYS.savedStates,
+  SAVED_STATES.PERSIST_KEY,
   atom<SavedState[]>([]),
 );
 
-export function SavedMetronomeStatesCard(props: Props) {
+export function SavedStatesCard(props: Props) {
   const { state, onLoad, disabled = false, className = "" } = props;
 
   const [savedStates, setSavedStates] = useAtom(savedStatesAtom);
@@ -48,16 +48,12 @@ export function SavedMetronomeStatesCard(props: Props) {
             {/* <SettingsIcon className="size-5" /> */}
           </button>
           <h2 className="flex-1 text-center">Saved Settings</h2>
-          <div className="tooltip">
-            <div className="tooltip-content p-0">
-              <div className="bg-neutral rounded-full p-1 px-2 [@media(max-width:28rem)]:-translate-x-2">
-                BPM / Beats
-              </div>
-            </div>
-            <button className="btn btn-ghost btn-square btn-sm">
-              <InfoIcon className="size-5" />
-            </button>
-          </div>
+          <button
+            className="btn btn-ghost btn-square btn-sm tooltip max-md:tooltip-left"
+            data-tip="BPM / Beats / Sub Division"
+          >
+            <InfoIcon className="size-5" />
+          </button>
         </div>
 
         {savedStates.length === 0 ? (
@@ -83,10 +79,14 @@ export function SavedMetronomeStatesCard(props: Props) {
                   <span className="w-0 grow truncate">
                     {savedState.name || "Unnamed"}
                   </span>
-                  <span>
-                    <b className="text-lg">{savedState.bpm}</b> /{" "}
-                    <b className="text-lg">{savedState.beats}</b>
-                  </span>
+                  <div className="flex h-full items-center gap-1">
+                    <b className="text-lg">{savedState.bpm}</b> /
+                    <b className="text-lg">{savedState.beats}</b> /
+                    <NoteIcon
+                      className="h-full"
+                      type={savedState.subDivision || SUB_DIVISION.DEFAULT}
+                    />
+                  </div>
                 </button>
               </div>
             ))}
@@ -95,7 +95,7 @@ export function SavedMetronomeStatesCard(props: Props) {
         <div className="mt-2 text-center">
           <button
             className={cn(
-              "btn btn-soft transition-all duration-500",
+              "btn btn-soft motion-safe:transition-all motion-safe:duration-500",
               savedStates.length > 0 ? "w-full max-w-full" : "btn-wide",
             )}
             onClick={() => saveModal.current?.showModal()}

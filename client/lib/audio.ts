@@ -1,6 +1,9 @@
+import { VOLUME } from "@/constants";
+import { atom, toPersisted } from "./atom";
+
 let _audioCtx: AudioContext | null = null;
 
-export const getAudioContext = async () => {
+const getContext = async () => {
   if (_audioCtx !== null) {
     if (_audioCtx.state === "interrupted" || _audioCtx.state === "suspended") {
       await _audioCtx.resume();
@@ -20,6 +23,11 @@ export const getAudioContext = async () => {
   return _audioCtx;
 };
 
+/**
+ * range: 0 ~ 100 (%)
+ */
+const volumeRatio = toPersisted(VOLUME.PERSIST_KEY, atom(VOLUME.DEFAULT));
+
 type SoundPreset = {
   hz: number;
   gain: {
@@ -30,7 +38,7 @@ type SoundPreset = {
   };
 };
 
-export const SOUND_PRESETS = {
+const SOUND_PRESETS = {
   SUB: {
     hz: 400,
     gain: {
@@ -67,6 +75,7 @@ export function scheduleSound(
 ) {
   const preset = SOUND_PRESETS[presetKey];
   const { hz, gain } = preset;
+  const volumeMul = volumeRatio.get() / 100;
 
   // Create oscillator
   const osc = ctx.createOscillator();
@@ -74,9 +83,9 @@ export function scheduleSound(
 
   // Create gain node
   const gainNode = ctx.createGain();
-  gainNode.gain.setValueAtTime(gain.start, soundAtSec);
+  gainNode.gain.setValueAtTime(gain.start * volumeMul, soundAtSec);
   gainNode.gain.exponentialRampToValueAtTime(
-    gain.end,
+    gain.end * volumeMul,
     soundAtSec + gain.durationSec,
   );
 
@@ -85,3 +94,14 @@ export function scheduleSound(
   osc.start(soundAtSec);
   osc.stop(soundAtSec + gain.durationSec);
 }
+
+/**
+ * exports
+ */
+
+export const audio = {
+  PRESETS: SOUND_PRESETS,
+  volume: volumeRatio,
+  schedule: scheduleSound,
+  getContext,
+};

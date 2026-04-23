@@ -1,16 +1,43 @@
-export const DEFAULT_BPM = 120;
-export const DEFAULT_BEATS = 4;
-export const DEFAULT_SUB_DIVISION = "quater";
+export const PLAY_DELAY_MS = 50;
 
-export const MIN_BPM = 20;
-export const MAX_BPM = 300;
-export const ALLOWED_BEATS = [2, 3, 4, 6, 8] as const;
-export const PLAY_SCHEDULE_LEAD_MS = 0;
+export const BPM = {
+  DEFAULT: 120,
+  MIN: 20,
+  MAX: 300,
+  PERSIST_KEY: "ms-bpm",
+};
 
-export const STORAGE_KEYS = {
-  bpm: "ms-bpm",
-  beats: "ms-beats",
-  subDivision: "ms-sub-division",
-  offset: "ms-offset",
-  savedStates: "ms-saved-states",
+export const BEATS = {
+  DEFAULT: 4,
+  MIN: 2,
+  MAX: 8,
+  PERSIST_KEY: "ms-beats",
+};
+
+const SUB_DIVISION_S = ["quater", "quavers", "triplet", "semiquavers"] as const;
+export const SUB_DIVISION = {
+  S: SUB_DIVISION_S,
+  DEFAULT: SUB_DIVISION_S[0],
+  MIN: 2,
+  MAX: 8,
+  PERSIST_KEY: "ms-sub-division",
+};
+
+export const VOLUME = {
+  DEFAULT: 1,
+  MIN: 0,
+  MAX: 100,
+  PERSIST_KEY: "ms-volume",
+};
+
+export const OFFSET = {
+  DEFAULT: 0 as number,
+  MIN: -40,
+  MAX: 40,
+  PERSIST_KEY: "ms-offset",
+};
+
+export const SAVED_STATES = {
+  DEFAULT: [],
+  PERSIST_KEY: "ms-saved-states",
 };

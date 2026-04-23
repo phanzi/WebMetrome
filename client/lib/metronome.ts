@@ -1,25 +1,23 @@
-import {
-  DEFAULT_BEATS,
-  DEFAULT_BPM,
-  DEFAULT_SUB_DIVISION,
-  STORAGE_KEYS,
-} from "@/constants";
+import { BEATS, BPM, OFFSET, PLAY_DELAY_MS, SUB_DIVISION } from "@/constants";
 import { atom, toPersisted } from "./atom";
-import { getAudioContext, scheduleSound, SOUND_PRESETS } from "./sound";
+import { audio } from "./audio";
+
+export type SubDivision = (typeof SUB_DIVISION.S)[number];
 
 export type MetronomeState = {
   bpm: number;
   beats: number;
+  subDivision: SubDivision;
 };
 
-const bpm = toPersisted(STORAGE_KEYS.bpm, atom(DEFAULT_BPM));
-const beats = toPersisted(STORAGE_KEYS.beats, atom(DEFAULT_BEATS));
+const bpm = toPersisted(BPM.PERSIST_KEY, atom(BPM.DEFAULT));
+const beats = toPersisted(BEATS.PERSIST_KEY, atom(BEATS.DEFAULT));
 const subDivision = toPersisted(
-  STORAGE_KEYS.subDivision,
-  atom<"quater" | "quavers" | "triplet" | "semiquavers">(DEFAULT_SUB_DIVISION),
+  SUB_DIVISION.PERSIST_KEY,
+  atom<SubDivision>(SUB_DIVISION.DEFAULT),
 );
 const beatIndex = atom(-1);
-const offset = toPersisted(STORAGE_KEYS.offset, atom(0));
+const offset = toPersisted(OFFSET.PERSIST_KEY, atom(OFFSET.DEFAULT));
 const isPlaying = atom(false);
 
 let _nextNoteSec = 0;
@@ -28,15 +26,15 @@ let _timer = -1;
 
 function _scheduleBeat(
   ctx: AudioContext,
-  presetKey: keyof typeof SOUND_PRESETS,
+  presetKey: keyof typeof audio.PRESETS,
   beatAt: number,
 ) {
-  scheduleSound(ctx, presetKey, beatAt + offset.get() / 1000);
+  audio.schedule(ctx, presetKey, beatAt + offset.get() / 1000);
 }
 
 function _scheduleNote(
   ctx: AudioContext,
-  presetKey: keyof typeof SOUND_PRESETS,
+  presetKey: keyof typeof audio.PRESETS,
   noteAtSec: number,
 ) {
   switch (subDivision.get()) {
@@ -76,15 +74,15 @@ function _schedule(ctx: AudioContext) {
 }
 
 async function play(startedAt: number) {
-  const ctx = await getAudioContext();
+  const ctx = await audio.getContext();
   if (isPlaying.get()) return;
   isPlaying.set(true);
 
   const now = Date.now();
   const diffMs = now - startedAt;
   const bpmMs = 60_000 / bpm.get();
-  _beatCounter = Math.floor((diffMs - 50) / bpmMs);
-  _nextNoteSec = (50 + (_beatCounter + 1) * bpmMs - diffMs) / 1000;
+  _beatCounter = Math.floor((diffMs - PLAY_DELAY_MS) / bpmMs);
+  _nextNoteSec = (PLAY_DELAY_MS + (_beatCounter + 1) * bpmMs - diffMs) / 1000;
 
   _nextNoteSec += ctx.currentTime;
   _schedule(ctx);
@@ -92,7 +90,7 @@ async function play(startedAt: number) {
 
 async function stop() {
   if (!isPlaying.get()) return;
-  const ctx = await getAudioContext();
+  const ctx = await audio.getContext();
   ctx.suspend();
   cancelAnimationFrame(_timer);
   beatIndex.set(-1);

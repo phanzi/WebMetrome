@@ -23,7 +23,6 @@ type ErrorData =
  */
 
 const apiRooms = treaty<App>(location.origin).rooms;
-const state = atom<"idle" | "connecting" | "online">("idle");
 const error = atom("");
 const role = atom<"owner" | "member">("owner");
 
@@ -117,10 +116,10 @@ function connect(roomId: string) {
   };
 }
 
-async function join(roomId: string) {
+async function join(roomId: string, onClose?: () => void) {
   error.set("");
-  state.set("connecting");
   const { promise, resolve, reject } = Promise.withResolvers();
+  let isFullfilled = false;
   const Tc = Date.now();
 
   _con = connect(roomId);
@@ -129,9 +128,11 @@ async function join(roomId: string) {
     const Ts = data.now;
     room.clockSkew = Ts - Tc - (Tn - Tc) / 2;
     role.set(data.role);
-    state.set("online");
-    resolve();
 
+    if (!isFullfilled) {
+      resolve();
+      isFullfilled = true;
+    }
     if (data.role === "owner") {
       _con?.send({
         type: "set-metronome",
@@ -151,9 +152,6 @@ async function join(roomId: string) {
         metronome.subDivision.set(data.payload.subDivision);
         break;
       case "play-schedule":
-        metronome.bpm.set(data.payload.state.bpm);
-        metronome.beats.set(data.payload.state.beats);
-        metronome.subDivision.set(data.payload.state.subDivision);
         metronome.play(data.payload.at - room.clockSkew);
         break;
       case "play-halt":
@@ -181,10 +179,13 @@ async function join(roomId: string) {
     }
   });
   _con.onClose(() => {
-    reject();
+    if (!isFullfilled) {
+      reject();
+      isFullfilled = true;
+    }
+    onClose?.();
     metronome.stop();
     role.set("owner");
-    state.set("idle");
     _con = null;
   });
 
@@ -200,7 +201,6 @@ async function join(roomId: string) {
 }
 
 function send(message: WSRequest) {
-  if (state.get() !== "online") return;
   if (role.get() !== "owner") return;
   _con?.send(message);
 }
@@ -220,7 +220,6 @@ function leave() {
 export const room = {
   role,
   error,
-  state,
   clockSkew: 0,
   create,
   join,

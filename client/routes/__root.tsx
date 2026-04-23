@@ -1,9 +1,11 @@
-import { BeatCard } from "@/components/BeatCard";
 import { BeatDot } from "@/components/BeatDot";
-import { BpmCard } from "@/components/BpmCard";
 import { Card } from "@/components/Card";
-import { SavedMetronomeStatesCard } from "@/components/SavedMetronomeStatesCard";
-import { ViewLatencyOffsetCard } from "@/components/ViewLatencyCard";
+import { BeatCard } from "@/components/ctrl/BeatCard";
+import { BpmCard } from "@/components/ctrl/BpmCard";
+import { LatencyOffsetCard } from "@/components/ctrl/LatencyCard";
+import { SavedStatesCard } from "@/components/ctrl/SavedStatesCard";
+import { VolumeCard } from "@/components/ctrl/VolumeCard";
+import { SUB_DIVISION } from "@/constants";
 import { SubscribeAtom, useAtom } from "@/lib/atom";
 import { metronome } from "@/lib/metronome";
 import { room } from "@/lib/room";
@@ -13,7 +15,6 @@ import { createRootRoute, Outlet, useMatch } from "@tanstack/react-router";
 import { debounce, range } from "es-toolkit";
 import { MoonIcon, SunIcon, SunMoonIcon, UnplugIcon } from "lucide-react";
 
-// TODO: not found page 추가
 export const Route = createRootRoute({
   component: RootLayout,
 });
@@ -26,7 +27,6 @@ function RootLayout() {
   const [beats, setBeats] = useAtom(metronome.beats);
   const [subDivision, setSubDivision] = useAtom(metronome.subDivision);
   const [beatIndex] = useAtom(metronome.beatIndex);
-  const [offset, setOffset] = useAtom(metronome.offset);
   const [isPlaying] = useAtom(metronome.isPlaying);
 
   /**
@@ -37,7 +37,7 @@ function RootLayout() {
 
   const handleSetBpm = (bpm: number) => {
     setBpm(bpm);
-    if (room.state.get() === "online") {
+    if (isOnline) {
       room.send({
         type: "set-metronome",
         payload: {
@@ -50,7 +50,7 @@ function RootLayout() {
   };
   const handleSetBeats = (beats: number) => {
     setBeats(beats);
-    if (room.state.get() === "online") {
+    if (isOnline) {
       room.send({
         type: "set-metronome",
         payload: {
@@ -65,7 +65,7 @@ function RootLayout() {
     subDivision: ReturnType<typeof metronome.subDivision.get>,
   ) => {
     setSubDivision(subDivision);
-    if (room.state.get() === "online") {
+    if (isOnline) {
       room.send({
         type: "set-metronome",
         payload: {
@@ -79,14 +79,14 @@ function RootLayout() {
   const togglePlay = () => {
     if (isPlaying) {
       metronome.stop();
-      if (room.state.get() === "online") {
+      if (isOnline) {
         room.send({
           type: "play-halt",
           payload: {},
         });
       }
     } else {
-      if (room.state.get() === "online") {
+      if (isOnline) {
         room.send({
           type: "play-schedule",
           payload: {
@@ -124,8 +124,9 @@ function RootLayout() {
               aria-label="close sidebar"
             ></label>
 
-            <div className="w-md max-w-full p-4">
+            <div className="w-[calc(var(--container-md)+--spacing(4))] max-w-full space-y-4 p-4">
               <Outlet />
+              <VolumeCard />
             </div>
           </div>
         </div>
@@ -181,12 +182,13 @@ function RootLayout() {
         onSubDivisionChange={handleSetSubDivision}
         disabled={editDisabled}
       />
-      <ViewLatencyOffsetCard offset={offset} onChange={setOffset} />
-      <SavedMetronomeStatesCard
-        state={{ bpm, beats }}
-        onLoad={({ bpm, beats }) => {
+      <LatencyOffsetCard />
+      <SavedStatesCard
+        state={{ bpm, beats, subDivision }}
+        onLoad={({ bpm, beats, subDivision }) => {
           handleSetBpm(bpm);
           handleSetBeats(beats);
+          handleSetSubDivision(subDivision || SUB_DIVISION.DEFAULT);
         }}
         disabled={editDisabled}
       />

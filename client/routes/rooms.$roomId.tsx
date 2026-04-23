@@ -1,22 +1,24 @@
 import { Card, CardBody } from "@/components/Card";
-import { CopyButton } from "@/components/CopyButton";
-import { QrcodeSvg } from "@/components/QrcodeSvg";
+import { QrcodeImg } from "@/components/QrcodeSvg";
+import { InjectSwapActive } from "@/components/swap";
 import { useAtom } from "@/lib/atom";
 import { room } from "@/lib/room";
+import { router } from "@/main";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { delay } from "es-toolkit";
-import { QrCodeIcon } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { CheckIcon, CopyIcon, QrCodeIcon } from "lucide-react";
+import { useRef } from "react";
 
 export const Route = createFileRoute("/rooms/$roomId")({
   loader: async ({ params }) => {
-    await delay(1000 * 0.5);
-    return await room.join(params.roomId);
+    return await room.join(params.roomId, () => {
+      router.navigate({ to: "/", replace: true });
+    });
   },
   staleTime: 0,
   gcTime: 0,
   component: RouteComponent,
   pendingComponent: PendingComponent,
+  pendingMs: 0,
   onError: () => Route.redirect({ to: "/", throw: true }),
   onLeave: () => room.leave(),
 });
@@ -59,17 +61,9 @@ function PendingComponent() {
 function RouteComponent() {
   const [error] = useAtom(room.error);
   const [role] = useAtom(room.role);
-  const [state] = useAtom(room.state);
 
   const { roomId } = Route.useParams();
-  const navigate = Route.useNavigate();
   const qrCodeModalRef = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    if (state !== "online") {
-      navigate({ to: "/", replace: true });
-    }
-  }, [state, navigate]);
 
   return (
     <Card>
@@ -96,7 +90,15 @@ function RouteComponent() {
         </div>
         <div className="text-center">
           <div className="join mt-2 w-72 max-w-full justify-center">
-            <CopyButton content={roomId} />
+            <InjectSwapActive>
+              <button
+                className="join-item btn bg-base-100 swap flex-1"
+                onClick={() => navigator.clipboard.writeText(roomId)}
+              >
+                <CopyIcon className="swap-off size-5" />
+                <CheckIcon className="swap-on size-5" />
+              </button>
+            </InjectSwapActive>
             <Link className="join-item btn bg-base-100 text-md flex-2" to="/">
               EXIT
             </Link>
@@ -114,7 +116,7 @@ function RouteComponent() {
         <div className="modal-box space-y-2">
           <h2 className="text-center text-lg font-bold">Link QR Code</h2>
           <div className="text-center">
-            <QrcodeSvg className="inline-block max-w-72" src={location.href} />
+            <QrcodeImg className="inline-block max-w-72" src={location.href} />
           </div>
           <p className="text-center text-sm text-gray-500">
             Scan QR code to join
