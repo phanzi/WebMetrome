@@ -1,4 +1,5 @@
 import { BEATS, BPM, OFFSET, PLAY_DELAY_MS, SUB_DIVISION } from "@/constants";
+import { delay } from "es-toolkit";
 import { atom, toPersisted } from "./atom";
 import { audio } from "./audio";
 
@@ -74,7 +75,7 @@ function _schedule(ctx: AudioContext) {
 }
 
 async function play(startedAt: number) {
-  const ctx = await audio.getContext();
+  const ctx = await audio.resume();
   if (isPlaying.get()) return;
   isPlaying.set(true);
 
@@ -90,9 +91,9 @@ async function play(startedAt: number) {
 
 async function stop() {
   if (!isPlaying.get()) return;
-  const ctx = await audio.getContext();
-  ctx.suspend();
   cancelAnimationFrame(_timer);
+  await delay(100);
+  await audio.suspend();
   beatIndex.set(-1);
   isPlaying.set(false);
 }

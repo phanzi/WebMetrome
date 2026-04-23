@@ -31,7 +31,7 @@ export function BpmCard(props: Props) {
   };
 
   const handleTapBpm = async () => {
-    const ctx = await audio.getContext();
+    const ctx = await audio.resume();
     audio.schedule(ctx, "REGULAR", ctx.currentTime + 0.01);
     const now = Date.now();
     const elapsed = Math.max(1, now - (tapTime.current ?? now));

@@ -1,27 +1,9 @@
 import { VOLUME } from "@/constants";
 import { atom, toPersisted } from "./atom";
 
-let _audioCtx: AudioContext | null = null;
-
-const getContext = async () => {
-  if (_audioCtx !== null) {
-    if (_audioCtx.state === "interrupted" || _audioCtx.state === "suspended") {
-      await _audioCtx.resume();
-    }
-    return _audioCtx;
-  }
-
-  const AC =
-    window.AudioContext ??
-    (window as typeof window & { webkitAudioContext?: typeof AudioContext })
-      .webkitAudioContext;
-  if (!AC) {
-    throw new Error("AudioContext constructor not found");
-  }
-
-  _audioCtx = new AC();
-  return _audioCtx;
-};
+const AC = AudioContext ?? (window as unsafe_any).webkitAudioContext;
+const _audioCtx = new AC();
+const _activeNodes = new Set<AudioScheduledSourceNode>();
 
 /**
  * range: 0 ~ 100 (%)
@@ -80,6 +62,7 @@ export function scheduleSound(
   // Create oscillator
   const osc = ctx.createOscillator();
   osc.frequency.value = hz;
+  osc.addEventListener("ended", () => _activeNodes.delete(osc));
 
   // Create gain node
   const gainNode = ctx.createGain();
@@ -95,6 +78,24 @@ export function scheduleSound(
   osc.stop(soundAtSec + gain.durationSec);
 }
 
+async function resume() {
+  if (_audioCtx.state === "interrupted" || _audioCtx.state === "suspended") {
+    await _audioCtx.resume();
+  }
+  return _audioCtx;
+}
+
+async function suspend() {
+  for (const node of _activeNodes) {
+    try {
+      node.stop();
+    } catch {}
+  }
+  _activeNodes.clear();
+  await _audioCtx.suspend();
+  return _audioCtx;
+}
+
 /**
  * exports
  */
@@ -103,5 +104,6 @@ export const audio = {
   PRESETS: SOUND_PRESETS,
   volume: volumeRatio,
   schedule: scheduleSound,
-  getContext,
+  resume,
+  suspend,
 };
