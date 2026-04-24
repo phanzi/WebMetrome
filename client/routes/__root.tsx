@@ -9,7 +9,7 @@ import { SUB_DIVISION } from "@/constants";
 import { SubscribeAtom, useAtom } from "@/lib/atom";
 import { metronome } from "@/lib/metronome";
 import { room } from "@/lib/room";
-import { nextTheme, theme } from "@/lib/theme";
+import { theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { createRootRoute, Outlet, useMatch } from "@tanstack/react-router";
 import { debounce, range } from "es-toolkit";
@@ -133,12 +133,12 @@ function RootLayout() {
         </div>
 
         <h1 className="text-2xl font-bold">Sync Metronome</h1>
-        <SubscribeAtom atom={theme}>
-          {(theme) => (
-            <button className="btn" onClick={nextTheme}>
-              {theme === "light" ? <SunIcon /> : null}
-              {theme === "dark" ? <MoonIcon /> : null}
-              {theme === "system" ? <SunMoonIcon /> : null}
+        <SubscribeAtom atom={theme.base}>
+          {(value) => (
+            <button className="btn" onClick={theme.next}>
+              {value === "light" ? <SunIcon /> : null}
+              {value === "dark" ? <MoonIcon /> : null}
+              {value === "system" ? <SunMoonIcon /> : null}
             </button>
           )}
         </SubscribeAtom>

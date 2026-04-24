@@ -20,7 +20,7 @@ export const Route = createFileRoute("/rooms/$roomId")({
   pendingComponent: PendingComponent,
   pendingMs: 0,
   onError: () => Route.redirect({ to: "/", throw: true }),
-  onLeave: () => room.leave(),
+  onLeave: ({ loaderData: leave }) => leave?.(),
 });
 
 function PendingComponent() {

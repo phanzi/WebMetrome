@@ -1,29 +1,75 @@
-import { THEME_ATTRIBUTE } from "@/constants";
+import { THEME } from "@/constants";
 import { atom, toPersisted } from "@/lib/atom";
 
-const THEMES = ["system", "light", "dark"] as const;
+/**
+ * states and private vars
+ */
 
-type Theme = (typeof THEMES)[number];
+const base = toPersisted("theme", atom<(typeof THEME.S)[number]>(THEME.S[0]));
+const computed = atom<"light" | "dark">(THEME.S[1]);
 
-export const theme = toPersisted("theme", atom<Theme>(THEMES[0]));
+/**
+ * subscriptions
+ */
 
-const meta = document.createElement("meta");
-meta.setAttribute("name", "theme-color");
-document.head.appendChild(meta);
-
-theme.subscribe(() => {
+base.subscribe(() => {
   const html = document.documentElement;
 
-  const themeValue = theme.get();
-  themeValue === "system"
-    ? html.removeAttribute(THEME_ATTRIBUTE)
-    : html.setAttribute(THEME_ATTRIBUTE, `base-${themeValue}`);
+  switch (base.get()) {
+    case "system":
+      html.removeAttribute(THEME.ATTRIBUTE);
+      const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      computed.set(isDark ? "dark" : "light");
+      break;
+    case "light":
+      html.setAttribute(THEME.ATTRIBUTE, "base-light");
+      computed.set("light");
+      break;
+    case "dark":
+      html.setAttribute(THEME.ATTRIBUTE, "base-dark");
+      computed.set("dark");
+      break;
+    default:
+      throw new Error(`Invalid theme: ${base.get()}`);
+  }
+});
+computed.subscribe(() => {
+  let meta = document.querySelector("meta[name='theme-color']");
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "theme-color");
+    document.head.appendChild(meta);
+  }
 
-  meta.setAttribute("content", getComputedStyle(html).backgroundColor);
+  switch (computed.get()) {
+    case "light":
+      meta.setAttribute("content", "#E8E8E8");
+      break;
+    case "dark":
+      meta.setAttribute("content", "#4D4D4D");
+      break;
+    default:
+      throw new Error(`Invalid computed theme: ${computed.get()}`);
+  }
+});
+document.addEventListener("DOMContentLoaded", () => {
+  base.notify();
 });
 
-theme.notify();
+/**
+ * actions
+ */
 
-export function nextTheme() {
-  theme.set(THEMES[(THEMES.indexOf(theme.get()) + 1) % THEMES.length]);
+function next() {
+  base.set(THEME.S[(THEME.S.indexOf(base.get()) + 1) % THEME.S.length]);
 }
+
+/**
+ * exports
+ */
+
+export const theme = {
+  base,
+  computed,
+  next,
+};

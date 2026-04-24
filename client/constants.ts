@@ -1,4 +1,3 @@
-export const THEME_ATTRIBUTE = "data-theme";
 export const PLAY_DELAY_MS = 50;
 
 export const BPM = {
@@ -41,4 +40,9 @@ export const OFFSET = {
 export const SAVED_STATES = {
   DEFAULT: [],
   PERSIST_KEY: "ms-saved-states",
+};
+
+export const THEME = {
+  S: ["system", "light", "dark"] as const,
+  ATTRIBUTE: "data-theme",
 };

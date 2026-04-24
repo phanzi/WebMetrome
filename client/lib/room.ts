@@ -1,6 +1,5 @@
 import { treaty } from "@elysiajs/eden";
 import type { App } from "@server/app";
-import { timeout, TimeoutError } from "es-toolkit";
 import { atom } from "./atom";
 import { metronome } from "./metronome";
 
@@ -9,14 +8,12 @@ import { metronome } from "./metronome";
  */
 
 type WS = App["~Routes"]["rooms"]["subscribe"];
+type Connection = ReturnType<typeof apiRooms.subscribe>;
 type WSRequest = WS["body"];
 type WSResponse = WS["response"]["200"];
 
-type OpenData = Extract<WSResponse, { type: "room-joined" }>["payload"];
 type MessageData = Exclude<WSResponse, { type: "error" | "room-joined" }>;
-type ErrorData =
-  | Extract<WSResponse, { type: "error" }>["payload"]
-  | { code: "UNKNOWN" | "UNEXPECTED"; message: string };
+type ErrorData = Extract<WSResponse, { type: "error" }>["payload"];
 
 /**
  * api and states
@@ -26,125 +23,23 @@ const apiRooms = treaty<App>(location.origin).rooms;
 const error = atom("");
 const role = atom<"owner" | "member">("owner");
 
-let _con: ReturnType<typeof connect> | null = null;
+let _con: Connection | null = null;
 
 /**
  * actions
  */
 
-function connect(roomId: string) {
-  const openListeners = new Set<(data: OpenData) => void>();
-  const messageListeners = new Set<(data: MessageData) => void>();
-  const errorListeners = new Set<(data: ErrorData) => void>();
-  const closeListeners = new Set<() => void>();
-
-  const ctrl = new AbortController();
-  const con = apiRooms.subscribe({
-    query: { roomId },
-  });
-
-  con.on(
-    "message",
-    ({ data }) => {
-      switch (data.type) {
-        case "room-joined":
-          openListeners.forEach((listener) => listener(data.payload));
-          break;
-        case "error":
-          errorListeners.forEach((listener) => listener(data.payload));
-          break;
-        default:
-          messageListeners.forEach((listener) => listener(data));
-          break;
-      }
-    },
-    { signal: ctrl.signal },
-  );
-  con.on(
-    "error",
-    () => {
-      errorListeners.forEach((listener) =>
-        listener({ code: "UNEXPECTED", message: "Unexpected error" }),
-      );
-      con.close();
-    },
-    { signal: ctrl.signal },
-  );
-  con.on(
-    "close",
-    () => {
-      closeListeners.forEach(() => {});
-    },
-    { signal: ctrl.signal },
-  );
-
-  return {
-    onOpen: (listener: (data: OpenData) => void) => {
-      openListeners.add(listener);
-      return () => {
-        openListeners.delete(listener);
-      };
-    },
-    onMessage: (listener: (data: MessageData) => void) => {
-      messageListeners.add(listener);
-      return () => {
-        messageListeners.delete(listener);
-      };
-    },
-    onError: (listener: (data: ErrorData) => void) => {
-      errorListeners.add(listener);
-      return () => {
-        errorListeners.delete(listener);
-      };
-    },
-    onClose: (listener: () => void) => {
-      closeListeners.add(listener);
-      return () => {
-        closeListeners.delete(listener);
-      };
-    },
-    close: () => {
-      openListeners.clear();
-      messageListeners.clear();
-      errorListeners.clear();
-      closeListeners.clear();
-      con?.close();
-    },
-    send: (message: WSRequest) => {
-      con.send(message);
-    },
+function _getClockSkewCalculator() {
+  const Tc = Date.now();
+  return (Tn: number) => {
+    return Tn - Tc - (Tn - Tc) / 2;
   };
 }
 
-async function join(roomId: string, onClose?: () => void) {
-  error.set("");
-  const { promise, resolve, reject } = Promise.withResolvers();
-  let isFullfilled = false;
-  const Tc = Date.now();
+function _listen(con: Connection, onClose?: () => void) {
+  const ctrl = new AbortController();
 
-  _con = connect(roomId);
-  _con.onOpen((data) => {
-    const Tn = Date.now();
-    const Ts = data.now;
-    room.clockSkew = Ts - Tc - (Tn - Tc) / 2;
-    role.set(data.role);
-
-    if (!isFullfilled) {
-      resolve();
-      isFullfilled = true;
-    }
-    if (data.role === "owner") {
-      _con?.send({
-        type: "set-metronome",
-        payload: {
-          bpm: metronome.bpm.get(),
-          beats: metronome.beats.get(),
-          subDivision: metronome.subDivision.get(),
-        },
-      });
-    }
-  });
-  _con.onMessage((data) => {
+  const handleData = (data: MessageData) => {
     switch (data.type) {
       case "set-metronome":
         metronome.bpm.set(data.payload.bpm);
@@ -160,57 +55,105 @@ async function join(roomId: string, onClose?: () => void) {
       case "promote-owner":
         role.set("owner");
         break;
-    }
-  });
-  _con.onError((data) => {
-    switch (data.code) {
-      case "ROOM_NOT_FOUND":
-        error.set("Room not exist or expired");
+      default:
+        error.set(`Unexpected message: ${(data as unsafe_any).type}`);
+        console.log(data);
         break;
+    }
+  };
+  const handleError = (data: ErrorData) => {
+    switch (data.code) {
       case "UNAUTHORIZED":
         error.set("You are not host");
         break;
-      case "UNEXPECTED":
-        error.set("Unexpected error");
-        break;
-      case "UNKNOWN":
-        error.set(data.message);
+      default:
+        error.set(`Unexpected error: ${(data as unsafe_any).code}`);
+        console.log(data);
         break;
     }
-  });
-  _con.onClose(() => {
-    if (!isFullfilled) {
-      reject();
-      isFullfilled = true;
-    }
+  };
+  const handleClose = () => {
     onClose?.();
     metronome.stop();
     role.set("owner");
     _con = null;
+  };
+
+  const onMessage = (data: WSResponse) => {
+    if (data.type === "room-joined") return error.set("Already joined");
+    if (data.type === "error") return handleError(data.payload);
+    return handleData(data);
+  };
+  con.on("message", ({ data }) => onMessage(data), { signal: ctrl.signal });
+  con.on("close", handleClose, { signal: ctrl.signal });
+
+  return () => {
+    ctrl.abort();
+    con.close();
+  };
+}
+
+async function join(roomId: string, onClose?: () => void) {
+  error.set("");
+  const calcClockSkew = _getClockSkewCalculator();
+  const ctrl = new AbortController();
+  const { promise, resolve, reject } =
+    Promise.withResolvers<
+      Extract<WSResponse, { type: "room-joined" }>["payload"]
+    >();
+
+  const con = apiRooms.subscribe({
+    query: { roomId },
   });
 
-  return await Promise.race([promise, timeout(1000)]).catch(
-    (maybeTimeoutError) => {
-      if (maybeTimeoutError instanceof TimeoutError) {
-        error.set("Connection timeout");
-        _con?.close();
+  con.on(
+    "message",
+    ({ data }) => {
+      if (data.type === "room-joined") {
+        return resolve(data.payload);
       }
-      throw maybeTimeoutError;
+      if (data.type !== "error") {
+        return reject(`Unknown ${data.type}`);
+      }
+      if (data.payload.code === "ROOM_NOT_FOUND") {
+        return reject("Room not exist or expired");
+      }
+      return reject(`Unexpected ${data.payload.code}`);
     },
+    { signal: ctrl.signal, once: true },
   );
+  con.on(
+    "error",
+    () => {
+      reject("Unexpected error");
+    },
+    { signal: ctrl.signal, once: true },
+  );
+  const timer = setTimeout(() => {
+    reject("Connection timeout");
+  }, 1000);
+
+  return await promise
+    .then((data) => {
+      room.clockSkew = calcClockSkew(data.now);
+      role.set(data.role);
+      _con = con;
+      return _listen(con, onClose);
+    })
+    .catch((cause: string) => {
+      error.set(cause);
+      con.close();
+      throw new Error(cause);
+    })
+    .finally(() => {
+      ctrl.abort();
+      clearTimeout(timer);
+    });
 }
 
 function send(message: WSRequest) {
   if (role.get() !== "owner") return;
   _con?.send(message);
-}
-
-async function create() {
-  return await apiRooms.post();
-}
-
-function leave() {
-  _con?.close();
 }
 
 /**
@@ -221,8 +164,7 @@ export const room = {
   role,
   error,
   clockSkew: 0,
-  create,
+  create: () => apiRooms.post(),
   join,
-  leave,
   send,
 };
