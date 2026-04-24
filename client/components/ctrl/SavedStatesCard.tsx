@@ -6,6 +6,7 @@ import { InfoIcon } from "lucide-react";
 import { useRef } from "react";
 import { Card, CardBody } from "../Card";
 import { NoteIcon } from "../NoteIcon";
+import { Portal } from "../portal";
 
 type Props = {
   state: MetronomeState;
@@ -106,28 +107,32 @@ export function SavedStatesCard(props: Props) {
         </div>
       </CardBody>
 
-      <dialog className="modal" ref={saveModal}>
-        <form
-          className="modal-box space-y-2 text-center"
-          method="dialog"
-          onSubmit={handleSaveSubmit}
-        >
-          <h2 className="text-center text-lg font-bold">Save State</h2>
-          <input
-            className="input input-bordered input-lg w-72 max-w-full text-center text-xl"
-            autoComplete="off"
-            type="text"
-            name="state-name"
-          />
-          <p className="text-base-content text-sm">Enter state name to save</p>
-          <div className="modal-action justify-center">
-            <button className="btn btn-primary w-72 max-w-full">SAVE</button>
-          </div>
-        </form>
-        <form className="modal-backdrop" method="dialog">
-          <button>close</button>
-        </form>
-      </dialog>
+      <Portal>
+        <dialog className="modal" ref={saveModal}>
+          <form
+            className="modal-box space-y-2 text-center"
+            method="dialog"
+            onSubmit={handleSaveSubmit}
+          >
+            <h2 className="text-center text-lg font-bold">Save State</h2>
+            <input
+              className="input input-bordered input-lg w-72 max-w-full text-center text-xl"
+              autoComplete="off"
+              type="text"
+              name="state-name"
+            />
+            <p className="text-base-content text-sm">
+              Enter state name to save
+            </p>
+            <div className="modal-action justify-center">
+              <button className="btn btn-primary w-72 max-w-full">SAVE</button>
+            </div>
+          </form>
+          <form className="modal-backdrop" method="dialog">
+            <button>close</button>
+          </form>
+        </dialog>
+      </Portal>
     </Card>
   );
 }

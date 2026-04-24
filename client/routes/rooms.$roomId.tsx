@@ -1,5 +1,6 @@
 import { Card, CardBody } from "@/components/Card";
 import { QrcodeImg } from "@/components/QrcodeSvg";
+import { Portal } from "@/components/portal";
 import { InjectSwapActive } from "@/components/swap";
 import { useAtom } from "@/lib/atom";
 import { room } from "@/lib/room";
@@ -112,20 +113,25 @@ function RouteComponent() {
         </div>
       </CardBody>
 
-      <dialog className="modal" id="qr-code-modal" ref={qrCodeModalRef}>
-        <div className="modal-box space-y-2">
-          <h2 className="text-center text-lg font-bold">Link QR Code</h2>
-          <div className="text-center">
-            <QrcodeImg className="inline-block max-w-72" src={location.href} />
+      <Portal>
+        <dialog className="modal" id="qr-code-modal" ref={qrCodeModalRef}>
+          <div className="modal-box space-y-2">
+            <h2 className="text-center text-lg font-bold">Link QR Code</h2>
+            <div className="text-center">
+              <QrcodeImg
+                className="inline-block max-w-72"
+                src={location.href}
+              />
+            </div>
+            <p className="text-center text-sm text-gray-500">
+              Scan QR code to join
+            </p>
           </div>
-          <p className="text-center text-sm text-gray-500">
-            Scan QR code to join
-          </p>
-        </div>
-        <form className="modal-backdrop" method="dialog">
-          <button>close</button>
-        </form>
-      </dialog>
+          <form className="modal-backdrop" method="dialog">
+            <button>close</button>
+          </form>
+        </dialog>
+      </Portal>
     </Card>
   );
 }

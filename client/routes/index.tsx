@@ -1,4 +1,5 @@
 import { Card, CardBody } from "@/components/Card";
+import { Portal } from "@/components/portal";
 import { useAtom } from "@/lib/atom";
 import { room } from "@/lib/room";
 import { ROOM_ID_MIN_LENGTH, ROOM_ID_REGEX } from "@server/domain/constants";
@@ -89,35 +90,37 @@ function RouteComponent() {
         </div>
       </CardBody>
 
-      <dialog className="modal" ref={joinModalRef}>
-        <form
-          className="modal-box space-y-2 text-center"
-          method="dialog"
-          onSubmit={handleJoinSubmit}
-        >
-          <h2 className="text-center text-lg font-bold">Remote Control</h2>
-          <input
-            className="input input-bordered input-lg w-72 max-w-full text-center text-3xl"
-            type="text"
-            name="room-id"
-          />
-          {joinError ? (
-            <p className="text-error text-sm">{joinError}</p>
-          ) : (
-            <p className="text-base-content text-sm">Enter room ID to join</p>
-          )}
-          <div className="modal-action justify-center">
-            <button className="btn btn-primary w-72 max-w-full">Join</button>
-          </div>
-        </form>
-        <form
-          className="modal-backdrop"
-          method="dialog"
-          onSubmit={() => setJoinError("")}
-        >
-          <button>close</button>
-        </form>
-      </dialog>
+      <Portal>
+        <dialog className="modal" ref={joinModalRef}>
+          <form
+            className="modal-box space-y-2 text-center"
+            method="dialog"
+            onSubmit={handleJoinSubmit}
+          >
+            <h2 className="text-center text-lg font-bold">Remote Control</h2>
+            <input
+              className="input input-bordered input-lg w-72 max-w-full text-center text-3xl"
+              type="text"
+              name="room-id"
+            />
+            {joinError ? (
+              <p className="text-error text-sm">{joinError}</p>
+            ) : (
+              <p className="text-base-content text-sm">Enter room ID to join</p>
+            )}
+            <div className="modal-action justify-center">
+              <button className="btn btn-primary w-72 max-w-full">Join</button>
+            </div>
+          </form>
+          <form
+            className="modal-backdrop"
+            method="dialog"
+            onSubmit={() => setJoinError("")}
+          >
+            <button>close</button>
+          </form>
+        </dialog>
+      </Portal>
     </Card>
   );
 }
