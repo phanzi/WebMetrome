@@ -1,3 +1,4 @@
+import gitignore from "eslint-config-flat-gitignore";
 import reactCompiler from "eslint-plugin-react-compiler";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
@@ -6,14 +7,8 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores([
-    ".agents/**",
-    "client/out/**",
-    "dist",
-    "out",
-    "node_modules",
-    "server/dist",
-  ]),
+  gitignore(),
+  globalIgnores([".agents"]),
   ...tseslint.configs.recommended,
   /**
    * rules for client files
