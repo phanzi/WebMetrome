@@ -1,5 +1,7 @@
 import { treaty } from "@elysiajs/eden";
 import type { App } from "@server/app";
+import { Fail, Ok, Result } from "@server/shared/result";
+import { nanoid } from "nanoid";
 import { atom } from "./atom";
 import { metronome } from "./metronome";
 
@@ -22,6 +24,7 @@ type ErrorData = Extract<WSResponse, { type: "error" }>["payload"];
 const apiRooms = treaty<App>(location.origin).rooms;
 const error = atom("");
 const role = atom<"owner" | "member">("owner");
+const isPending = atom(false);
 
 let _con: Connection | null = null;
 
@@ -95,6 +98,7 @@ function _listen(con: Connection, onClose?: () => void) {
 
 async function join(roomId: string, onClose?: () => void) {
   error.set("");
+  isPending.set(true);
   const calcClockSkew = _getClockSkewCalculator();
   const ctrl = new AbortController();
   const { promise, resolve, reject } =
@@ -148,12 +152,51 @@ async function join(roomId: string, onClose?: () => void) {
     .finally(() => {
       ctrl.abort();
       clearTimeout(timer);
+      isPending.set(false);
     });
 }
 
-function send(message: WSRequest) {
-  if (role.get() !== "owner") return;
-  _con?.send(message);
+type SendReturn<T extends WSRequest["type"]> =
+  | Result<Extract<WSResponse, { type: T }>["payload"], never>
+  | Result<never, "UNAUTHORIZED" | "UNEXPECTED">;
+
+async function send<T extends WSRequest["type"]>(
+  type: T,
+  payload: Extract<WSRequest, { type: T }>["payload"],
+) {
+  if (!_con) return Ok(payload);
+
+  isPending.set(true);
+  const id = nanoid();
+  const message = { id, type, payload } as WSRequest;
+  const { promise, resolve } = Promise.withResolvers<SendReturn<T>>();
+  const ctrl = new AbortController();
+
+  _con.on(
+    "message",
+    ({ data }) => {
+      if (data.id !== id) {
+        return;
+      }
+      if (data.type === type) {
+        return resolve(Ok(data.payload as unsafe_any));
+      }
+      if (data.type !== "error") {
+        return resolve(Fail("UNEXPECTED", `Unexpected ${data.type}`));
+      }
+      if (data.payload.code === "UNAUTHORIZED") {
+        return resolve(Fail("UNAUTHORIZED", "You are not host"));
+      }
+      return resolve(Fail("UNEXPECTED", `Unexpected ${data.payload.code}`));
+    },
+    { signal: ctrl.signal },
+  );
+  _con.send(message);
+
+  return await promise.finally(() => {
+    ctrl.abort();
+    isPending.set(false);
+  });
 }
 
 /**
@@ -163,6 +206,7 @@ function send(message: WSRequest) {
 export const room = {
   role,
   error,
+  isPending,
   clockSkew: 0,
   create: () => apiRooms.post(),
   join,

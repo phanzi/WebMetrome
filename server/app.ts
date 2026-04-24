@@ -1,4 +1,5 @@
 import { Elysia } from "elysia";
+import { nanoid } from "nanoid";
 import z from "zod";
 import { ROOM_ID_REGEX } from "./domain/constants";
 import { RoomService } from "./domain/roomService";
@@ -7,54 +8,47 @@ const querySchema = z.object({
   roomId: z.string().regex(ROOM_ID_REGEX),
 });
 
+function _createResponseSchmea<
+  const T extends string,
+  const P extends Record<string, z.ZodType>,
+>(type: T, payload: P) {
+  return z.object({
+    id: z.string(),
+    type: z.literal(type),
+    payload: z.object(payload),
+  });
+}
+
 const messageSchema = z.union([
-  z.object({
-    type: z.literal("set-metronome"),
-    payload: z.object({
+  _createResponseSchmea("set-metronome", {
+    bpm: z.number(),
+    beats: z.number(),
+    subDivision: z.enum(["quater", "quavers", "triplet", "semiquavers"]),
+  }),
+  _createResponseSchmea("play-schedule", {
+    // ms Unix timestamp
+    at: z.number(),
+    // metronome state
+    state: z.object({
       bpm: z.number(),
       beats: z.number(),
       subDivision: z.enum(["quater", "quavers", "triplet", "semiquavers"]),
     }),
   }),
-  z.object({
-    type: z.literal("play-schedule"),
-    payload: z.object({
-      // ms Unix timestamp
-      at: z.number(),
-      // metronome state
-      state: z.object({
-        bpm: z.number(),
-        beats: z.number(),
-        subDivision: z.enum(["quater", "quavers", "triplet", "semiquavers"]),
-      }),
-    }),
-  }),
-  z.object({
-    type: z.literal("play-halt"),
-    payload: z.object({}),
-  }),
+  _createResponseSchmea("play-halt", {}),
 ]);
 
 const responseSchema = messageSchema.or(
   z.union([
-    z.object({
-      type: z.literal("room-joined"),
-      payload: z.object({
-        now: z.number(),
-        roomId: z.string(),
-        role: z.literal(["owner", "member"]),
-      }),
+    _createResponseSchmea("room-joined", {
+      now: z.number(),
+      roomId: z.string(),
+      role: z.literal(["owner", "member"]),
     }),
-    z.object({
-      type: z.literal("promote-owner"),
-      payload: z.object({}),
-    }),
-    z.object({
-      type: z.literal("error"),
-      payload: z.object({
-        code: z.literal(["UNAUTHORIZED", "ROOM_NOT_FOUND"]),
-        message: z.string(),
-      }),
+    _createResponseSchmea("promote-owner", {}),
+    _createResponseSchmea("error", {
+      code: z.literal(["UNAUTHORIZED", "ROOM_NOT_FOUND"]),
+      message: z.string(),
     }),
   ]),
 );
@@ -77,6 +71,7 @@ export function createApp() {
         const joined = roomService.joinRoom(ws, roomId);
         if (!joined.success) {
           ws.send({
+            id: nanoid(),
             type: "error",
             payload: {
               code: joined.code,
@@ -88,6 +83,7 @@ export function createApp() {
 
         ws.subscribe(joined.data.room.id);
         ws.send({
+          id: nanoid(),
           type: "room-joined",
           payload: {
             now: Date.now(),
@@ -97,12 +93,14 @@ export function createApp() {
         });
         if (joined.data.room.owner.id !== ws.id) {
           ws.send({
+            id: nanoid(),
             type: "set-metronome",
             payload: joined.data.room.metronome,
           });
         }
         if (joined.data.room.lastPlayAt) {
           ws.send({
+            id: nanoid(),
             type: "play-schedule",
             payload: {
               at: joined.data.room.lastPlayAt,
@@ -115,6 +113,7 @@ export function createApp() {
         const check = roomService.checkMessagable(ws.id);
         if (!check.success) {
           ws.send({
+            id: nanoid(),
             type: "error",
             payload: {
               code: check.code,
@@ -134,13 +133,13 @@ export function createApp() {
             room.lastPlayAt = now;
             room.metronome = message.payload.state;
             message.payload.at = now;
-            ws.send(message);
             break;
           case "play-halt":
             room.lastPlayAt = null;
             break;
         }
 
+        ws.send(message);
         ws.publish(room.id, message);
       },
       close(ws) {
@@ -148,6 +147,7 @@ export function createApp() {
         if (left.success) {
           if (left.data.type === "owner-changed") {
             left.data.owner.send({
+              id: nanoid(),
               type: "promote-owner",
               payload: {},
             });

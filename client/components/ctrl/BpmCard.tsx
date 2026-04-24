@@ -20,14 +20,26 @@ export function BpmCard(props: Props) {
     setDisplayBpm(bpm);
   }, [bpm]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const parsed = parseInt(e.target.value) || 0;
+  const handleChange = (e: React.SyntheticEvent<HTMLInputElement>) => {
+    const parsed = parseInt(e.currentTarget.value) || 0;
     setDisplayBpm(parsed);
     onChange?.(parsed);
   };
-  const handleDoubleClick = () => {
+  const handleDisplayChange = (e: React.SyntheticEvent<HTMLInputElement>) => {
+    const parsed = parseInt(e.currentTarget.value) || 0;
+    setDisplayBpm(parsed);
+  };
+  const reset = () => {
     setDisplayBpm(BPM.DEFAULT);
     onChange?.(BPM.DEFAULT);
+  };
+  const handleKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!e.key.startsWith("Arrow")) return;
+    const parsed = parseInt(e.currentTarget.value) || 0;
+    onChange?.(parsed);
+  };
+  const onPointerDown = (e: React.PointerEvent<HTMLInputElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handleTapBpm = async () => {
@@ -55,7 +67,7 @@ export function BpmCard(props: Props) {
             value={displayBpm}
             disabled={disabled}
             onChange={handleChange}
-            onDoubleClick={handleDoubleClick}
+            onDoubleClick={reset}
           />
           <button
             className="btn btn-soft btn-primary absolute top-0 right-1"
@@ -67,13 +79,17 @@ export function BpmCard(props: Props) {
         </div>
         <div className="relative mt-3 text-center">
           <input
-            className="range range-primary"
+            className="range range-primary touch-none"
             type="range"
             min={BPM.MIN}
             max={BPM.MAX}
             value={displayBpm}
             disabled={disabled}
-            onChange={handleChange}
+            onChange={handleDisplayChange}
+            onKeyUp={handleKeyUp}
+            onPointerDown={onPointerDown}
+            onPointerUp={handleChange}
+            onPointerCancel={handleChange}
           />
         </div>
       </CardBody>

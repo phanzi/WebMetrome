@@ -12,7 +12,7 @@ import { room } from "@/lib/room";
 import { theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { createRootRoute, Outlet, useMatch } from "@tanstack/react-router";
-import { debounce, range } from "es-toolkit";
+import { range } from "es-toolkit";
 import { MoonIcon, SunIcon, SunMoonIcon, UnplugIcon } from "lucide-react";
 
 export const Route = createRootRoute({
@@ -32,80 +32,75 @@ function RootLayout() {
   /**
    * room state
    */
+  const [isPending] = useAtom(room.isPending);
   const [role] = useAtom(room.role);
   const match = useMatch({ from: "/rooms/$roomId", shouldThrow: false });
 
-  const handleSetBpm = (bpm: number) => {
-    setBpm(bpm);
-    if (isOnline) {
-      room.send({
-        type: "set-metronome",
-        payload: {
-          bpm,
-          beats,
-          subDivision,
-        },
-      });
+  const handleSetBpm = async (bpm: number) => {
+    console.log("handleSetBpm", bpm);
+    const result = await room.send("set-metronome", {
+      bpm,
+      beats,
+      subDivision,
+    });
+    if (result.success) {
+      setBpm(bpm);
+    } else {
+      alert(result.message);
     }
   };
-  const handleSetBeats = (beats: number) => {
-    setBeats(beats);
-    if (isOnline) {
-      room.send({
-        type: "set-metronome",
-        payload: {
-          bpm,
-          beats,
-          subDivision,
-        },
-      });
+  const handleSetBeats = async (beats: number) => {
+    const result = await room.send("set-metronome", {
+      bpm,
+      beats,
+      subDivision,
+    });
+    if (result.success) {
+      setBeats(beats);
+    } else {
+      alert(result.message);
     }
   };
-  const handleSetSubDivision = (
+  const handleSetSubDivision = async (
     subDivision: ReturnType<typeof metronome.subDivision.get>,
   ) => {
-    setSubDivision(subDivision);
-    if (isOnline) {
-      room.send({
-        type: "set-metronome",
-        payload: {
+    const result = await room.send("set-metronome", {
+      bpm,
+      beats,
+      subDivision,
+    });
+    if (result.success) {
+      setSubDivision(subDivision);
+    } else {
+      alert(result.message);
+    }
+  };
+  const togglePlay = async () => {
+    if (isPlaying) {
+      const result = await room.send("play-halt", {});
+      if (result.success) {
+        metronome.stop();
+      } else {
+        alert(result.message);
+      }
+    } else {
+      const result = await room.send("play-schedule", {
+        at: Date.now(),
+        state: {
           bpm,
           beats,
           subDivision,
         },
       });
-    }
-  };
-  const togglePlay = () => {
-    if (isPlaying) {
-      metronome.stop();
-      if (isOnline) {
-        room.send({
-          type: "play-halt",
-          payload: {},
-        });
-      }
-    } else {
-      if (isOnline) {
-        room.send({
-          type: "play-schedule",
-          payload: {
-            at: Date.now(),
-            state: {
-              bpm,
-              beats,
-              subDivision,
-            },
-          },
-        });
-      } else {
-        metronome.play(Date.now());
+      if (result.success) {
+        metronome.play(result.data.at - room.clockSkew);
       }
     }
   };
 
   const isOnline = match?.status === "success";
-  const editDisabled = isPlaying || (isOnline && role !== "owner");
+  const editDisabled = isPending || isPlaying || (isOnline && role !== "owner");
+  const playDisabled = isPending || (isOnline && role !== "owner");
 
   return (
     <div className="mx-auto min-h-screen max-w-md space-y-4 py-4 font-sans">
@@ -171,11 +166,7 @@ function RootLayout() {
         </div>
       </Card>
 
-      <BpmCard
-        bpm={bpm}
-        onChange={debounce(handleSetBpm, 300)}
-        disabled={editDisabled}
-      />
+      <BpmCard bpm={bpm} onChange={handleSetBpm} disabled={editDisabled} />
       <BeatCard
         beats={beats}
         onBeatsChange={handleSetBeats}
@@ -199,7 +190,7 @@ function RootLayout() {
           isPlaying ? "btn-warning" : "btn-primary",
         )}
         onClick={togglePlay}
-        disabled={isOnline && role !== "owner"}
+        disabled={playDisabled}
       >
         {isPlaying ? "STOP" : "START"}
       </button>
