@@ -34,15 +34,13 @@ export async function buildServer(isDev: boolean) {
   } else {
     const STATIC_ROOT = join("out", "dist");
 
-    server
-      .use(
-        await staticPlugin({
-          assets: STATIC_ROOT,
-          prefix: "/",
-          alwaysStatic: true,
-        }),
-      )
-      .get("/*", () => Bun.file(join(STATIC_ROOT, "index.html")));
+    server.use(
+      await staticPlugin({
+        assets: STATIC_ROOT,
+        prefix: "/",
+        alwaysStatic: true,
+      }),
+    );
 
     console.log(`📁 정적 파일: ${STATIC_ROOT}`);
   }
