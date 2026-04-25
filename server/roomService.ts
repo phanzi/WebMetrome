@@ -1,4 +1,4 @@
-import { Fail, Ok } from "@server/shared/result";
+import { Fail, Ok } from "@server/result";
 import { nanoid } from "nanoid";
 import {
   DEFAULT_BEATS,

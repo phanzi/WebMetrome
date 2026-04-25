@@ -2,7 +2,7 @@ import { Card, CardBody } from "@/components/Card";
 import { Portal } from "@/components/portal";
 import { useAtom } from "@/lib/atom";
 import { room } from "@/lib/room";
-import { ROOM_ID_MIN_LENGTH, ROOM_ID_REGEX } from "@server/domain/constants";
+import { ROOM_ID_MIN_LENGTH, ROOM_ID_REGEX } from "@server/constants";
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 

@@ -1,7 +1,7 @@
 import { treaty } from "@elysiajs/eden";
 import type { App } from "@server/app";
 import { app } from "@server/app";
-import { Fail, Ok, Result } from "@server/shared/result";
+import { Fail, Ok, Result } from "@server/result";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { nanoid } from "nanoid";
 import { atom } from "./atom";
