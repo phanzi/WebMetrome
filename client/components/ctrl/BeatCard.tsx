@@ -37,6 +37,8 @@ export function BeatCard(props: Props) {
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
+            name="beats"
+            aria-label="beats text input"
             value={beats}
             disabled={disabled}
             onChange={(e) => onBeatsChange(parseInt(e.target.value) || 0)}
@@ -72,6 +74,7 @@ export function BeatCard(props: Props) {
               data-tip={s}
             >
               <NoteIcon className="h-full" type={s} />
+              <span className="sr-only">{s}</span>
             </button>
           ))}
         </div>

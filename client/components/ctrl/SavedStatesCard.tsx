@@ -45,14 +45,16 @@ export function SavedStatesCard(props: Props) {
     <Card className={className}>
       <CardBody className="gap-0">
         <div className="card-title mb-1 px-2">
-          <button className="btn btn-ghost btn-sm btn-square">
+          {/* 좌우 공백 조정을 위한 빈 버튼 */}
+          <div className="btn btn-ghost btn-sm btn-square">
             {/* <SettingsIcon className="size-5" /> */}
-          </button>
+          </div>
           <h2 className="flex-1 text-center">Saved Settings</h2>
           <button
             className="btn btn-ghost btn-square btn-sm tooltip max-md:tooltip-left"
             data-tip="BPM / Beats / Sub Division"
           >
+            <span className="sr-only">BPM / Beats / Sub Division</span>
             <InfoIcon className="size-5" />
           </button>
         </div>

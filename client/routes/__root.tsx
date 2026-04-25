@@ -11,11 +11,51 @@ import { metronome } from "@/lib/metronome";
 import { room } from "@/lib/room";
 import { theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { createRootRoute, Outlet, useMatch } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  HeadContent,
+  Outlet,
+  useMatch,
+} from "@tanstack/react-router";
 import { range } from "es-toolkit";
 import { MoonIcon, SunIcon, SunMoonIcon, UnplugIcon } from "lucide-react";
 
 export const Route = createRootRoute({
+  head: () => {
+    return {
+      meta: [
+        { charSet: "UTF-8" },
+        { title: "Sync Metronome" },
+        {
+          name: "description",
+          content: "Sync Metronome - sync beats sound anywhere",
+        },
+        { name: "viewport", content: "width=device-width, initial-scale=1.0" },
+        // { name: "theme-color" }, // Loaded dynamically by theme.ts
+        // open graph
+        { property: "og:title", content: "Sync Metronome" },
+        {
+          property: "og:description",
+          content: "Sync Metronome - sync beats sound anywhere",
+        },
+        { property: "og:image", content: `${location.origin}/og-image.png` },
+        { property: "og:url", content: location.origin },
+        { property: "og:type", content: "website" },
+        { property: "og:site_name", content: "Sync Metronome" },
+        { property: "og:locale", content: "en_US" },
+        // twitter
+        { property: "twitter:card", content: "summary_large_image" },
+        { property: "twitter:title", content: "Sync Metronome" },
+        {
+          property: "twitter:description",
+          content: "Sync Metronome - sync beats sound anywhere",
+        },
+        { property: "twitter:image", content: "/og-image.png" },
+        { property: "twitter:url", content: location.origin },
+      ],
+      links: [{ rel: "canonical", href: location.origin }],
+    };
+  },
   component: RootLayout,
 });
 
@@ -103,97 +143,103 @@ function RootLayout() {
   const playDisabled = isPending || (isOnline && role !== "owner");
 
   return (
-    <div className="mx-auto min-h-screen max-w-md space-y-4 py-4 font-sans">
-      <header className="flex items-center justify-between px-4">
-        <div className="drawer contents">
-          <input className="drawer-toggle" id="my-drawer-1" type="checkbox" />
-          <div className="drawer-content">
-            <label className="btn drawer-button" htmlFor="my-drawer-1">
-              <UnplugIcon />
-            </label>
-          </div>
-          <div className="drawer-side z-20">
-            <label
-              className="drawer-overlay"
-              htmlFor="my-drawer-1"
-              aria-label="close sidebar"
-            ></label>
+    <>
+      <HeadContent />
+      <div className="mx-auto min-h-screen max-w-md space-y-4 py-4 font-sans">
+        <header className="flex items-center justify-between px-4">
+          <div className="drawer contents">
+            <input className="drawer-toggle" id="my-drawer-1" type="checkbox" />
+            <div className="drawer-content">
+              <label className="btn drawer-button" htmlFor="my-drawer-1">
+                <UnplugIcon />
+              </label>
+            </div>
+            <div className="drawer-side z-20">
+              <label className="drawer-overlay" htmlFor="my-drawer-1">
+                <span className="sr-only">close sidebar</span>
+              </label>
 
-            <div className="w-[calc(var(--container-md)+--spacing(4))] max-w-full space-y-4 p-4">
-              <Outlet />
-              <VolumeCard />
-              <LatencyOffsetCard />
+              <div className="w-[calc(var(--container-md)+--spacing(4))] max-w-full space-y-4 p-4">
+                <Outlet />
+                <VolumeCard />
+                <LatencyOffsetCard />
+              </div>
             </div>
           </div>
-        </div>
 
-        <h1 className="text-2xl font-bold">Sync Metronome</h1>
-        <SubscribeAtom atom={theme.base}>
-          {(value) => (
-            <button className="btn" onClick={theme.next}>
-              {value === "light" ? <SunIcon /> : null}
-              {value === "dark" ? <MoonIcon /> : null}
-              {value === "system" ? <SunMoonIcon /> : null}
-            </button>
-          )}
-        </SubscribeAtom>
-      </header>
-
-      <Card className="sticky top-4 z-10 flex-row shadow-lg">
-        <div className="flex w-full p-4">
-          <BeatDot
-            className="w-0 border-0 outline-0"
-            variant="accent"
-          ></BeatDot>
-          <div
-            className={cn(
-              "flex w-full items-center justify-center gap-2",
-              beats > 10 && "gap-1.5",
-              beats > 20 && "gap-1",
-              beats > 40 && "gap-0.5",
+          <h1 className="text-2xl font-bold">Sync Metronome</h1>
+          <SubscribeAtom atom={theme.base}>
+            {(value) => (
+              <button className="btn" onClick={theme.next}>
+                {value === "light" ? <SunIcon /> : null}
+                {value === "dark" ? <MoonIcon /> : null}
+                {value === "system" ? <SunMoonIcon /> : null}
+                <span className="sr-only">change theme to {value}</span>
+              </button>
             )}
-          >
-            {range(0, beats).map((i) => (
+          </SubscribeAtom>
+        </header>
+
+        <main className="space-y-4">
+          <Card className="sticky top-4 z-10 flex-row shadow-lg">
+            <div className="flex w-full p-4">
               <BeatDot
-                key={i}
-                variant={i === 0 ? "accent" : "regular"}
-                state={beatIndex === i ? "active" : "inactive"}
+                className="w-0 border-0 outline-0"
+                variant="accent"
+              ></BeatDot>
+              <div
+                className={cn(
+                  "flex w-full items-center justify-center gap-2",
+                  beats > 10 && "gap-1.5",
+                  beats > 20 && "gap-1",
+                  beats > 40 && "gap-0.5",
+                )}
               >
-                {beats <= 10 ? i + 1 : ""}
-              </BeatDot>
-            ))}
-          </div>
-        </div>
-      </Card>
+                {range(0, beats).map((i) => (
+                  <BeatDot
+                    key={i}
+                    variant={i === 0 ? "accent" : "regular"}
+                    state={beatIndex === i ? "active" : "inactive"}
+                  >
+                    {beats <= 10 ? i + 1 : ""}
+                  </BeatDot>
+                ))}
+              </div>
+            </div>
+          </Card>
 
-      <BpmCard bpm={bpm} onChange={handleSetBpm} disabled={editDisabled} />
-      <BeatCard
-        beats={beats}
-        onBeatsChange={handleSetBeats}
-        subDivision={subDivision}
-        onSubDivisionChange={handleSetSubDivision}
-        disabled={editDisabled}
-      />
-      <SavedStatesCard
-        state={{ bpm, beats, subDivision }}
-        onLoad={({ bpm, beats, subDivision }) => {
-          handleSetBpm(bpm);
-          handleSetBeats(beats);
-          handleSetSubDivision(subDivision || SUB_DIVISION.DEFAULT);
-        }}
-        disabled={editDisabled}
-      />
+          <BpmCard bpm={bpm} onChange={handleSetBpm} disabled={editDisabled} />
+          <BeatCard
+            beats={beats}
+            onBeatsChange={handleSetBeats}
+            subDivision={subDivision}
+            onSubDivisionChange={handleSetSubDivision}
+            disabled={editDisabled}
+          />
+          <SavedStatesCard
+            state={{ bpm, beats, subDivision }}
+            onLoad={({ bpm, beats, subDivision }) => {
+              handleSetBpm(bpm);
+              handleSetBeats(beats);
+              handleSetSubDivision(subDivision || SUB_DIVISION.DEFAULT);
+            }}
+            disabled={editDisabled}
+          />
+        </main>
 
-      <button
-        className={cn(
-          "btn btn-xl sticky bottom-4 w-full",
-          isPlaying ? "btn-warning" : "btn-primary",
-        )}
-        onClick={togglePlay}
-        disabled={playDisabled}
-      >
-        {isPlaying ? "STOP" : "START"}
-      </button>
-    </div>
+        <footer className="contents">
+          <button
+            className={cn(
+              "btn btn-xl sticky bottom-4 w-full",
+              isPlaying ? "btn-warning" : "btn-primary",
+            )}
+            onClick={togglePlay}
+            disabled={playDisabled}
+          >
+            {isPlaying ? "STOP" : "START"}
+          </button>
+        </footer>
+      </div>
+    </>
   );
 }

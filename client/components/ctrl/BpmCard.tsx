@@ -64,6 +64,7 @@ export function BpmCard(props: Props) {
             inputMode="numeric"
             pattern="[0-9]*"
             name="bpm"
+            aria-label="bpm text input"
             value={displayBpm}
             disabled={disabled}
             onChange={handleChange}
@@ -81,10 +82,12 @@ export function BpmCard(props: Props) {
           <input
             className="range range-primary touch-none"
             type="range"
+            name="bpm"
             min={BPM.MIN}
             max={BPM.MAX}
             value={displayBpm}
             disabled={disabled}
+            aria-label="bpm range slider"
             onChange={handleDisplayChange}
             onKeyUp={handleKeyUp}
             onPointerDown={onPointerDown}
