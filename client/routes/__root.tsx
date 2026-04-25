@@ -50,7 +50,7 @@ export const Route = createRootRoute({
           property: "twitter:description",
           content: "Sync Metronome - sync beats sound anywhere",
         },
-        { property: "twitter:image", content: "/og-image.png" },
+        { property: "twitter:image", content: `${location.origin}/og-image.png` },
         { property: "twitter:url", content: location.origin },
       ],
       links: [{ rel: "canonical", href: location.origin }],
