@@ -6,6 +6,7 @@ type unsafe_any = any;
 
 interface ImportMetaEnv {
   readonly VITE_API_ORIGIN?: string;
+  readonly VITE_PUBLIC_URL?: string;
 }
 
 interface ImportMeta {

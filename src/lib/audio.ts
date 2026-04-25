@@ -1,14 +1,21 @@
 import { VOLUME } from "@/constants";
-import { atom, toPersisted } from "./atom";
+import { atom, persist } from "./atom";
 
-const AC = AudioContext ?? (window as unsafe_any).webkitAudioContext;
-const _audioCtx = new AC();
 const _activeNodes = new Set<AudioScheduledSourceNode>();
+
+let _audioCtx: AudioContext | null = null;
+
+function _getAudioContext() {
+  if (_audioCtx !== null) return _audioCtx;
+  const AC = AudioContext ?? (window as unsafe_any).webkitAudioContext;
+  _audioCtx = new AC();
+  return _audioCtx;
+}
 
 /**
  * range: 0 ~ 100 (%)
  */
-const volumeRatio = toPersisted(VOLUME.PERSIST_KEY, atom(VOLUME.DEFAULT));
+const volumeRatio = persist(VOLUME.PERSIST_KEY, atom(VOLUME.DEFAULT));
 
 type SoundPreset = {
   hz: number;
@@ -80,6 +87,7 @@ export function scheduleSound(
 }
 
 async function resume() {
+  const _audioCtx = _getAudioContext();
   if (_audioCtx.state === "interrupted" || _audioCtx.state === "suspended") {
     await _audioCtx.resume();
   }
@@ -87,6 +95,7 @@ async function resume() {
 }
 
 async function suspend() {
+  const _audioCtx = _getAudioContext();
   for (const node of _activeNodes) {
     try {
       node.stop();

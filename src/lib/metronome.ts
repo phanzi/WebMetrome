@@ -1,6 +1,6 @@
 import { BEATS, BPM, OFFSET, PLAY_DELAY_MS, SUB_DIVISION } from "@/constants";
 import { delay } from "es-toolkit";
-import { atom, toPersisted } from "./atom";
+import { atom, persist } from "./atom";
 import { audio } from "./audio";
 
 export type SubDivision = (typeof SUB_DIVISION.S)[number];
@@ -11,14 +11,14 @@ export type MetronomeState = {
   subDivision: SubDivision;
 };
 
-const bpm = toPersisted(BPM.PERSIST_KEY, atom(BPM.DEFAULT));
-const beats = toPersisted(BEATS.PERSIST_KEY, atom(BEATS.DEFAULT));
-const subDivision = toPersisted(
+const bpm = persist(BPM.PERSIST_KEY, atom(BPM.DEFAULT));
+const beats = persist(BEATS.PERSIST_KEY, atom(BEATS.DEFAULT));
+const subDivision = persist(
   SUB_DIVISION.PERSIST_KEY,
   atom<SubDivision>(SUB_DIVISION.DEFAULT),
 );
 const beatIndex = atom(-1);
-const offset = toPersisted(OFFSET.PERSIST_KEY, atom(OFFSET.DEFAULT));
+const offset = persist(OFFSET.PERSIST_KEY, atom(OFFSET.DEFAULT));
 const isPlaying = atom(false);
 
 let _nextNoteSec = 0;

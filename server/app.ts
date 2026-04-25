@@ -58,12 +58,12 @@ export type ResponseSchema = z.output<typeof responseSchema>;
 export function createApp() {
   const roomService = new RoomService<ResponseSchema>();
 
-  return new Elysia()
-    .post("/rooms", () => roomService.readyRoom())
-    .guard({
-      query: querySchema,
-    })
+  return new Elysia({
+    prefix: "/api",
+  })
+    .post("/rooms", async () => roomService.readyRoom())
     .ws("/rooms", {
+      query: querySchema,
       body: messageSchema,
       response: responseSchema,
       open(ws) {

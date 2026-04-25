@@ -1,26 +1,46 @@
 import { BeatDot } from "@/components/BeatDot";
 import { Card } from "@/components/Card";
+import { ThemeButton } from "@/components/ThemeButtont";
 import { BeatCard } from "@/components/ctrl/BeatCard";
 import { BpmCard } from "@/components/ctrl/BpmCard";
 import { LatencyOffsetCard } from "@/components/ctrl/LatencyCard";
 import { SavedStatesCard } from "@/components/ctrl/SavedStatesCard";
 import { VolumeCard } from "@/components/ctrl/VolumeCard";
 import { SUB_DIVISION } from "@/constants";
-import { SubscribeAtom, useAtom } from "@/lib/atom";
+import { useAtom } from "@/lib/atom";
 import { metronome } from "@/lib/metronome";
 import { room } from "@/lib/room";
-import { theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import {
   createRootRoute,
   HeadContent,
   Outlet,
+  Scripts,
   useMatch,
 } from "@tanstack/react-router";
 import { range } from "es-toolkit";
-import { MoonIcon, SunIcon, SunMoonIcon, UnplugIcon } from "lucide-react";
+import { UnplugIcon } from "lucide-react";
+import "../index.css";
 
 export const Route = createRootRoute({
+  ssr: false,
+  shellComponent: ({ children }) => {
+    return (
+      <html>
+        <head>
+          <HeadContent />
+        </head>
+        <body>
+          {children}
+          <div className="contents" id="portal-exit"></div>
+          <Scripts />
+        </body>
+      </html>
+    );
+  },
+  notFoundComponent: () => {
+    return <p>Not Found</p>;
+  },
   head: () => {
     return {
       meta: [
@@ -38,8 +58,11 @@ export const Route = createRootRoute({
           property: "og:description",
           content: "Sync Metronome - sync beats sound anywhere",
         },
-        { property: "og:image", content: `${location.origin}/og-image.png` },
-        { property: "og:url", content: location.origin },
+        {
+          property: "og:image",
+          content: `${import.meta.env.VITE_PUBLIC_URL}/og-image.png`,
+        },
+        { property: "og:url", content: import.meta.env.VITE_PUBLIC_URL },
         { property: "og:type", content: "website" },
         { property: "og:site_name", content: "Sync Metronome" },
         { property: "og:locale", content: "en_US" },
@@ -50,10 +73,13 @@ export const Route = createRootRoute({
           property: "twitter:description",
           content: "Sync Metronome - sync beats sound anywhere",
         },
-        { property: "twitter:image", content: `${location.origin}/og-image.png` },
-        { property: "twitter:url", content: location.origin },
+        {
+          property: "twitter:image",
+          content: `${import.meta.env.VITE_PUBLIC_URL}/og-image.png`,
+        },
+        { property: "twitter:url", content: import.meta.env.VITE_PUBLIC_URL },
       ],
-      links: [{ rel: "canonical", href: location.origin }],
+      links: [{ rel: "canonical", href: import.meta.env.VITE_PUBLIC_URL }],
     };
   },
   component: RootLayout,
@@ -143,103 +169,91 @@ function RootLayout() {
   const playDisabled = isPending || (isOnline && role !== "owner");
 
   return (
-    <>
-      <HeadContent />
-      <div className="mx-auto min-h-screen max-w-md space-y-4 py-4 font-sans">
-        <header className="flex items-center justify-between px-4">
-          <div className="drawer contents">
-            <input className="drawer-toggle" id="my-drawer-1" type="checkbox" />
-            <div className="drawer-content">
-              <label className="btn drawer-button" htmlFor="my-drawer-1">
-                <UnplugIcon />
-              </label>
-            </div>
-            <div className="drawer-side z-20">
-              <label className="drawer-overlay" htmlFor="my-drawer-1">
-                <span className="sr-only">close sidebar</span>
-              </label>
+    <div className="mx-auto min-h-screen max-w-md space-y-4 py-4 font-sans">
+      <header className="flex items-center justify-between px-4">
+        <div className="drawer contents">
+          <input className="drawer-toggle" id="my-drawer-1" type="checkbox" />
+          <div className="drawer-content">
+            <label className="btn drawer-button" htmlFor="my-drawer-1">
+              <UnplugIcon />
+            </label>
+          </div>
+          <div className="drawer-side z-20">
+            <label className="drawer-overlay" htmlFor="my-drawer-1">
+              <span className="sr-only">close sidebar</span>
+            </label>
 
-              <div className="w-[calc(var(--container-md)+--spacing(4))] max-w-full space-y-4 p-4">
-                <Outlet />
-                <VolumeCard />
-                <LatencyOffsetCard />
-              </div>
+            <div className="w-[calc(var(--container-md)+--spacing(4))] max-w-full space-y-4 p-4">
+              <Outlet />
+              <VolumeCard />
+              <LatencyOffsetCard />
             </div>
           </div>
+        </div>
 
-          <h1 className="text-2xl font-bold">Sync Metronome</h1>
-          <SubscribeAtom atom={theme.base}>
-            {(value) => (
-              <button className="btn" onClick={theme.next}>
-                {value === "light" ? <SunIcon /> : null}
-                {value === "dark" ? <MoonIcon /> : null}
-                {value === "system" ? <SunMoonIcon /> : null}
-                <span className="sr-only">change theme to {value}</span>
-              </button>
-            )}
-          </SubscribeAtom>
-        </header>
+        <h1 className="text-2xl font-bold">Sync Metronome</h1>
+        <ThemeButton />
+      </header>
 
-        <main className="space-y-4">
-          <Card className="sticky top-4 z-10 flex-row shadow-lg">
-            <div className="flex w-full p-4">
-              <BeatDot
-                className="w-0 border-0 outline-0"
-                variant="accent"
-              ></BeatDot>
-              <div
-                className={cn(
-                  "flex w-full items-center justify-center gap-2",
-                  beats > 10 && "gap-1.5",
-                  beats > 20 && "gap-1",
-                  beats > 40 && "gap-0.5",
-                )}
-              >
-                {range(0, beats).map((i) => (
-                  <BeatDot
-                    key={i}
-                    variant={i === 0 ? "accent" : "regular"}
-                    state={beatIndex === i ? "active" : "inactive"}
-                  >
-                    {beats <= 10 ? i + 1 : ""}
-                  </BeatDot>
-                ))}
-              </div>
+      <main className="space-y-4">
+        <Card className="sticky top-4 z-10 flex-row shadow-lg">
+          <div className="flex w-full p-4">
+            <BeatDot
+              className="w-0 border-0 outline-0"
+              variant="accent"
+            ></BeatDot>
+            <div
+              className={cn(
+                "flex w-full items-center justify-center gap-2",
+                beats > 10 && "gap-1.5",
+                beats > 20 && "gap-1",
+                beats > 40 && "gap-0.5",
+              )}
+            >
+              {range(0, beats).map((i) => (
+                <BeatDot
+                  key={i}
+                  variant={i === 0 ? "accent" : "regular"}
+                  state={beatIndex === i ? "active" : "inactive"}
+                >
+                  {beats <= 10 ? i + 1 : ""}
+                </BeatDot>
+              ))}
             </div>
-          </Card>
+          </div>
+        </Card>
 
-          <BpmCard bpm={bpm} onChange={handleSetBpm} disabled={editDisabled} />
-          <BeatCard
-            beats={beats}
-            onBeatsChange={handleSetBeats}
-            subDivision={subDivision}
-            onSubDivisionChange={handleSetSubDivision}
-            disabled={editDisabled}
-          />
-          <SavedStatesCard
-            state={{ bpm, beats, subDivision }}
-            onLoad={({ bpm, beats, subDivision }) => {
-              handleSetBpm(bpm);
-              handleSetBeats(beats);
-              handleSetSubDivision(subDivision || SUB_DIVISION.DEFAULT);
-            }}
-            disabled={editDisabled}
-          />
-        </main>
+        <BpmCard bpm={bpm} onChange={handleSetBpm} disabled={editDisabled} />
+        <BeatCard
+          beats={beats}
+          onBeatsChange={handleSetBeats}
+          subDivision={subDivision}
+          onSubDivisionChange={handleSetSubDivision}
+          disabled={editDisabled}
+        />
+        <SavedStatesCard
+          state={{ bpm, beats, subDivision }}
+          onLoad={({ bpm, beats, subDivision }) => {
+            handleSetBpm(bpm);
+            handleSetBeats(beats);
+            handleSetSubDivision(subDivision || SUB_DIVISION.DEFAULT);
+          }}
+          disabled={editDisabled}
+        />
+      </main>
 
-        <footer className="contents">
-          <button
-            className={cn(
-              "btn btn-xl sticky bottom-4 w-full",
-              isPlaying ? "btn-warning" : "btn-primary",
-            )}
-            onClick={togglePlay}
-            disabled={playDisabled}
-          >
-            {isPlaying ? "STOP" : "START"}
-          </button>
-        </footer>
-      </div>
-    </>
+      <footer className="contents">
+        <button
+          className={cn(
+            "btn btn-xl sticky bottom-4 w-full",
+            isPlaying ? "btn-warning" : "btn-primary",
+          )}
+          onClick={togglePlay}
+          disabled={playDisabled}
+        >
+          {isPlaying ? "STOP" : "START"}
+        </button>
+      </footer>
+    </div>
   );
 }

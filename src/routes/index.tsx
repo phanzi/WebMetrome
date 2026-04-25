@@ -8,6 +8,9 @@ import { useRef, useState } from "react";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
+  notFoundComponent() {
+    return <p>Not Found</p>;
+  },
 });
 
 function RouteComponent() {
@@ -50,15 +53,21 @@ function RouteComponent() {
     setJoinError("");
 
     const roomId = await room.create();
+    console.log(roomId);
     if (!roomId.data) {
       setError("Try again later");
       return;
     }
 
+    let _roomId = "";
+    for await (const event of roomId.data) {
+      _roomId += event;
+    }
+
     navigate({
       to: "/rooms/$roomId",
       params: {
-        roomId: roomId.data,
+        roomId: _roomId,
       },
     });
   };

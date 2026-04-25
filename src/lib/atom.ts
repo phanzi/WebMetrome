@@ -1,3 +1,4 @@
+import { createIsomorphicFn } from "@tanstack/react-start";
 import type { ReactNode } from "react";
 import { useSyncExternalStore } from "react";
 
@@ -31,20 +32,25 @@ export function atom<T>(initialValue: T) {
 
 type Atom<T> = ReturnType<typeof atom<T>>;
 
-export function toPersisted<T>(key: string, atom: Atom<T>) {
-  const value = localStorage.getItem(key);
-  if (value !== null) {
-    atom.set(JSON.parse(value), false);
-  }
+export const persist = createIsomorphicFn()
+  .server(<T>(key: string, atom: Atom<T>) => atom)
+  .client(<T>(key: string, atom: Atom<T>) => {
+    const value = localStorage.getItem(key);
+    if (value !== null) {
+      try {
+        const parsed = JSON.parse(value) as { value: T };
+        atom.set(parsed.value, false);
+      } catch {}
+    }
 
-  atom.subscribe(() => {
-    localStorage.setItem(key, JSON.stringify(atom.get()));
-  });
-  return atom;
-}
+    atom.subscribe(() => {
+      localStorage.setItem(key, JSON.stringify({ value: atom.get() }));
+    });
+    return atom;
+  }) as <T>(key: string, atom: Atom<T>) => Atom<T>;
 
 export function useAtom<T>(atom: Atom<T>) {
-  const value = useSyncExternalStore(atom.subscribe, atom.get);
+  const value = useSyncExternalStore(atom.subscribe, atom.get, atom.get);
 
   const changeValue = (updater: T | ((prev: T) => T)) => {
     if (typeof updater === "function") {

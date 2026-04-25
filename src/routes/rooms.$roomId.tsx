@@ -4,7 +4,7 @@ import { Portal } from "@/components/portal";
 import { InjectSwapActive } from "@/components/swap";
 import { useAtom } from "@/lib/atom";
 import { room } from "@/lib/room";
-import { router } from "@/main";
+import { getRouter } from "@/router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckIcon, CopyIcon, QrCodeIcon } from "lucide-react";
 import { useRef } from "react";
@@ -12,7 +12,7 @@ import { useRef } from "react";
 export const Route = createFileRoute("/rooms/$roomId")({
   loader: async ({ params }) => {
     return await room.join(params.roomId, () => {
-      router.navigate({ to: "/", replace: true });
+      getRouter().navigate({ to: "/", replace: true });
     });
   },
   staleTime: 0,

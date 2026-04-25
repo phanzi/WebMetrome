@@ -1,5 +1,5 @@
 import { SAVED_STATES, SUB_DIVISION } from "@/constants";
-import { atom, toPersisted, useAtom } from "@/lib/atom";
+import { atom, persist, useAtom } from "@/lib/atom";
 import type { MetronomeState } from "@/lib/metronome";
 import { cn } from "@/lib/utils";
 import { InfoIcon } from "lucide-react";
@@ -18,7 +18,7 @@ type Props = {
 type SavedState = MetronomeState & {
   name: string;
 };
-const savedStatesAtom = toPersisted(
+const savedStatesAtom = persist(
   SAVED_STATES.PERSIST_KEY,
   atom<SavedState[]>([]),
 );

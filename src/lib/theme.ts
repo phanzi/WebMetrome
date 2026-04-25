@@ -1,11 +1,12 @@
 import { THEME } from "@/constants";
-import { atom, toPersisted } from "@/lib/atom";
+import { atom, persist } from "@/lib/atom";
+import { createIsomorphicFn } from "@tanstack/react-start";
 
 /**
  * states and private vars
  */
 
-const base = toPersisted("theme", atom<(typeof THEME.S)[number]>(THEME.S[0]));
+const base = persist("theme", atom<(typeof THEME.S)[number]>(THEME.S[0]));
 const computed = atom<"light" | "dark">(THEME.S[1]);
 
 /**
@@ -52,9 +53,12 @@ computed.subscribe(() => {
       throw new Error(`Invalid computed theme: ${computed.get()}`);
   }
 });
-document.addEventListener("DOMContentLoaded", () => {
-  base.notify();
-});
+
+createIsomorphicFn().client(() => {
+  document.addEventListener("DOMContentLoaded", () => {
+    base.notify();
+  });
+})();
 
 /**
  * actions

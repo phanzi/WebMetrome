@@ -1,6 +1,8 @@
 import { treaty } from "@elysiajs/eden";
 import type { App } from "@server/app";
+import { app } from "@server/app";
 import { Fail, Ok, Result } from "@server/shared/result";
+import { createIsomorphicFn } from "@tanstack/react-start";
 import { nanoid } from "nanoid";
 import { atom } from "./atom";
 import { metronome } from "./metronome";
@@ -9,7 +11,7 @@ import { metronome } from "./metronome";
  * type definitions
  */
 
-type WS = App["~Routes"]["rooms"]["subscribe"];
+type WS = App["~Routes"]["api"]["rooms"]["subscribe"];
 type Connection = ReturnType<typeof apiRooms.subscribe>;
 type WSRequest = WS["body"];
 type WSResponse = WS["response"]["200"];
@@ -21,7 +23,11 @@ type ErrorData = Extract<WSResponse, { type: "error" }>["payload"];
  * api and states
  */
 
-const apiRooms = treaty<App>(location.origin).rooms;
+const _getTreaty = createIsomorphicFn()
+  .client(() => treaty<App>(location.origin))
+  .server(() => treaty(app));
+
+const apiRooms = _getTreaty().api.rooms;
 const error = atom("");
 const role = atom<"owner" | "member">("owner");
 const isPending = atom(false);
