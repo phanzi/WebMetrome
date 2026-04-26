@@ -1,13 +1,12 @@
 import { Card, CardBody } from "@/components/Card";
+import { Portal } from "@/components/Portal";
 import { QrcodeImg } from "@/components/QrcodeSvg";
-import { Portal } from "@/components/portal";
-import { InjectSwapActive } from "@/components/swap";
-import { useAtom } from "@/lib/atom";
+import { SwapReturn } from "@/components/swap";
 import { room } from "@/lib/room";
 import { getRouter } from "@/router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckIcon, CopyIcon, QrCodeIcon } from "lucide-react";
-import { useRef } from "react";
+import { useStore } from "zustand";
 
 export const Route = createFileRoute("/rooms/$roomId")({
   loader: async ({ params }) => {
@@ -60,11 +59,10 @@ function PendingComponent() {
 }
 
 function RouteComponent() {
-  const [error] = useAtom(room.error);
-  const [role] = useAtom(room.role);
+  const error = useStore(room.store, (store) => store.error);
+  const role = useStore(room.store, (store) => store.role);
 
   const { roomId } = Route.useParams();
-  const qrCodeModalRef = useRef<HTMLDialogElement>(null);
 
   return (
     <Card>
@@ -91,7 +89,7 @@ function RouteComponent() {
         </div>
         <div className="text-center">
           <div className="join mt-2 w-72 max-w-full justify-center">
-            <InjectSwapActive>
+            <SwapReturn>
               <button
                 className="join-item btn bg-base-100 swap flex-1"
                 onClick={() => navigator.clipboard.writeText(roomId)}
@@ -99,13 +97,14 @@ function RouteComponent() {
                 <CopyIcon className="swap-off size-5" />
                 <CheckIcon className="swap-on size-5" />
               </button>
-            </InjectSwapActive>
+            </SwapReturn>
             <Link className="join-item btn bg-base-100 text-md flex-2" to="/">
               EXIT
             </Link>
             <button
               className="join-item btn bg-base-100 flex-1"
-              onClick={() => qrCodeModalRef.current?.showModal()}
+              command="show-modal"
+              commandfor="qr-code-modal"
             >
               <QrCodeIcon className="size-5" />
             </button>
@@ -114,7 +113,7 @@ function RouteComponent() {
       </CardBody>
 
       <Portal>
-        <dialog className="modal" id="qr-code-modal" ref={qrCodeModalRef}>
+        <dialog className="modal" id="qr-code-modal">
           <div className="modal-box space-y-2">
             <h2 className="text-center text-lg font-bold">Link QR Code</h2>
             <div className="text-center">

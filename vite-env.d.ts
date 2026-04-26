@@ -5,10 +5,21 @@
 type unsafe_any = any;
 
 interface ImportMetaEnv {
-  readonly VITE_API_ORIGIN?: string;
-  readonly VITE_PUBLIC_URL?: string;
+  readonly VITE_PUBLIC_URL: string;
 }
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
+}
+
+interface HTMLButtonElement {
+  commandFor?: string;
+  command?: string;
+}
+
+declare namespace React {
+  interface ButtonHTMLAttributes<T> extends HTMLAttributes<T> {
+    commandfor?: string;
+    command?: string;
+  }
 }

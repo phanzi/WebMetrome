@@ -1,13 +1,13 @@
 import { createRouter } from "@tanstack/react-router";
 import { memoize } from "es-toolkit";
-import { RouteComponent } from "./noFound";
+import { NotFound } from "./noFound";
 import { routeTree } from "./routeTree.gen";
 
 export const getRouter = memoize(() => {
   const router = createRouter({
     routeTree,
     scrollRestoration: true,
-    defaultNotFoundComponent: RouteComponent,
+    defaultNotFoundComponent: NotFound,
   });
 
   return router;

@@ -1,110 +1,161 @@
 import { BEATS, BPM, OFFSET, PLAY_DELAY_MS, SUB_DIVISION } from "@/constants";
 import { delay } from "es-toolkit";
-import { atom, persist } from "./atom";
-import { audio } from "./audio";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { immer } from "zustand/middleware/immer";
+import { createStore } from "zustand/vanilla";
+import { audio, BeapType } from "./audio";
 
-export type SubDivision = (typeof SUB_DIVISION.S)[number];
-
-export type MetronomeState = {
+type Option = {
   bpm: number;
   beats: number;
   subDivision: SubDivision;
 };
 
-const bpm = persist(BPM.PERSIST_KEY, atom(BPM.DEFAULT));
-const beats = persist(BEATS.PERSIST_KEY, atom(BEATS.DEFAULT));
-const subDivision = persist(
-  SUB_DIVISION.PERSIST_KEY,
-  atom<SubDivision>(SUB_DIVISION.DEFAULT),
-);
-const beatIndex = atom(-1);
-const offset = persist(OFFSET.PERSIST_KEY, atom(OFFSET.DEFAULT));
-const isPlaying = atom(false);
+export type SubDivision = (typeof SUB_DIVISION.S)[number];
+export type MetronomeOption = Option;
 
-let _nextNoteSec = 0;
-let _beatCounter = -1;
+type Store = {
+  option: Option;
+  saved: { name: string; option: Option }[];
+  beatIndex: number;
+  offset: number;
+  isPlaying: boolean;
+  actions: {
+    resetOption: <K extends keyof Option>(key: K) => void;
+    setOption: (parital: Partial<Option>) => void;
+    saveOption: (name: string) => void;
+    deleteOption: (index: number) => void;
+  };
+};
+
+const store = createStore<Store>()(
+  persist(
+    immer((set, _get) => ({
+      option: {
+        bpm: BPM.DEFAULT,
+        beats: BEATS.DEFAULT,
+        subDivision: SUB_DIVISION.DEFAULT,
+      },
+      saved: [],
+      beatIndex: -1,
+      offset: OFFSET.DEFAULT,
+      isPlaying: false,
+      actions: {
+        resetOption: (key) => {
+          set((state) => {
+            state.option[key] = store.getInitialState().option[key];
+          });
+        },
+        setOption: (partial) => {
+          set((state) => {
+            state.option = { ...state.option, ...partial };
+          });
+        },
+        saveOption: (name) => {
+          set((state) => {
+            state.saved.push({ name, option: state.option });
+          });
+        },
+        deleteOption: (index) => {
+          set((state) => {
+            state.saved.splice(index, 1);
+          });
+        },
+      },
+    })),
+    {
+      version: 1,
+      name: "metronome",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        option: state.option,
+        savedOptions: state.saved,
+      }),
+    },
+  ),
+);
+
 let _timer = -1;
 
-function _scheduleBeat(
-  ctx: AudioContext,
-  presetKey: keyof typeof audio.PRESETS,
-  beatAt: number,
-) {
-  audio.schedule(ctx, presetKey, beatAt + offset.get() / 1000);
+function _scheduleBeat(ctx: AudioContext, beapType: BeapType, beatAt: number) {
+  audio.schedule(ctx, beapType, beatAt + store.getState().offset / 1000);
 }
 
 function _scheduleNote(
   ctx: AudioContext,
-  presetKey: keyof typeof audio.PRESETS,
+  beapType: BeapType,
   noteAtSec: number,
 ) {
-  switch (subDivision.get()) {
+  const { subDivision, bpm } = store.getState().option;
+  switch (subDivision) {
     case "quater":
-      _scheduleBeat(ctx, presetKey, noteAtSec);
+      _scheduleBeat(ctx, beapType, noteAtSec);
       break;
     case "quavers":
-      _scheduleBeat(ctx, presetKey, noteAtSec);
-      _scheduleBeat(ctx, "SUB", noteAtSec + 30 / bpm.get());
+      _scheduleBeat(ctx, beapType, noteAtSec);
+      _scheduleBeat(ctx, "SUB", noteAtSec + 30 / bpm);
       break;
     case "triplet":
-      _scheduleBeat(ctx, presetKey, noteAtSec);
-      _scheduleBeat(ctx, "SUB", noteAtSec + 20 / bpm.get());
-      _scheduleBeat(ctx, "SUB", noteAtSec + 40 / bpm.get());
+      _scheduleBeat(ctx, beapType, noteAtSec);
+      _scheduleBeat(ctx, "SUB", noteAtSec + 20 / bpm);
+      _scheduleBeat(ctx, "SUB", noteAtSec + 40 / bpm);
       break;
     case "semiquavers":
-      _scheduleBeat(ctx, presetKey, noteAtSec);
-      _scheduleBeat(ctx, "SUB", noteAtSec + 15 / bpm.get());
-      _scheduleBeat(ctx, "SUB", noteAtSec + 30 / bpm.get());
-      _scheduleBeat(ctx, "SUB", noteAtSec + 45 / bpm.get());
+      _scheduleBeat(ctx, beapType, noteAtSec);
+      _scheduleBeat(ctx, "SUB", noteAtSec + 15 / bpm);
+      _scheduleBeat(ctx, "SUB", noteAtSec + 30 / bpm);
+      _scheduleBeat(ctx, "SUB", noteAtSec + 45 / bpm);
       break;
   }
 }
 
-function _schedule(ctx: AudioContext) {
+function _schedule(
+  ctx: AudioContext,
+  _nextNoteSec: number,
+  _beatCounter: number,
+) {
   // Look-ahead: 100ms 앞의 박자를 미리 예약
   while (_nextNoteSec < ctx.currentTime + 0.1) {
     _beatCounter++;
-    const isFirstBeat = _beatCounter % beats.get() === 0;
+    const isFirstBeat = _beatCounter % store.getState().option.beats === 0;
     _scheduleNote(ctx, isFirstBeat ? "ACCENT" : "REGULAR", _nextNoteSec);
 
-    _nextNoteSec += 60 / bpm.get();
-    beatIndex.set(_beatCounter % beats.get());
+    const { bpm, beats } = store.getState().option;
+    _nextNoteSec += 60 / bpm;
+    store.setState({ beatIndex: _beatCounter % beats });
   }
 
-  _timer = requestAnimationFrame(() => _schedule(ctx));
+  _timer = requestAnimationFrame(() =>
+    _schedule(ctx, _nextNoteSec, _beatCounter),
+  );
 }
 
 async function play(startedAt: number) {
   const ctx = await audio.resume();
-  if (isPlaying.get()) return;
-  isPlaying.set(true);
+  if (store.getState().isPlaying) return;
+  store.setState({ isPlaying: true });
 
   const now = Date.now();
   const diffMs = now - startedAt;
-  const bpmMs = 60_000 / bpm.get();
-  _beatCounter = Math.floor((diffMs - PLAY_DELAY_MS) / bpmMs);
-  _nextNoteSec = (PLAY_DELAY_MS + (_beatCounter + 1) * bpmMs - diffMs) / 1000;
+  const bpmMs = 60_000 / store.getState().option.bpm;
+  const _beatCounter = Math.floor((diffMs - PLAY_DELAY_MS) / bpmMs);
+  const _nextNoteSec =
+    ctx.currentTime +
+    (PLAY_DELAY_MS + (_beatCounter + 1) * bpmMs - diffMs) / 1000;
 
-  _nextNoteSec += ctx.currentTime;
-  _schedule(ctx);
+  _schedule(ctx, _nextNoteSec, _beatCounter);
 }
 
 async function stop() {
-  if (!isPlaying.get()) return;
+  if (!store.getState().isPlaying) return;
   cancelAnimationFrame(_timer);
   await delay(100);
   await audio.suspend();
-  beatIndex.set(-1);
-  isPlaying.set(false);
+  store.setState({ beatIndex: -1, isPlaying: false });
 }
 
 export const metronome = {
-  bpm,
-  beats,
-  subDivision,
-  beatIndex,
-  offset,
-  isPlaying,
+  store,
   play,
   stop,
 };

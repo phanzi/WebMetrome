@@ -1,27 +1,23 @@
 import { Card, CardBody } from "@/components/Card";
-import { Portal } from "@/components/portal";
-import { useAtom } from "@/lib/atom";
+import { Portal } from "@/components/Portal";
 import { room } from "@/lib/room";
 import { ROOM_ID_MIN_LENGTH, ROOM_ID_REGEX } from "@server/constants";
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { useStore } from "zustand";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
-  notFoundComponent() {
-    return <p>Not Found</p>;
-  },
 });
 
 function RouteComponent() {
   const navigate = Route.useNavigate();
-  const [error, setError] = useAtom(room.error);
+  const error = useStore(room.store, (store) => store.error);
   const [joinError, setJoinError] = useState("");
-  const joinModalRef = useRef<HTMLDialogElement>(null);
 
   const handleJoinSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
+    room.store.setState({ error: "" });
     setJoinError("");
 
     const formData = new FormData(e.target);
@@ -39,23 +35,22 @@ function RouteComponent() {
       return;
     }
     e.target.reset();
-    joinModalRef.current?.close();
     navigate({
       to: "/rooms/$roomId",
       params: {
         roomId,
       },
+      replace: true,
     });
   };
 
   const handleShareClick = async () => {
-    setError("");
+    room.store.setState({ error: "" });
     setJoinError("");
 
     const roomId = await room.create();
-    console.log(roomId);
     if (!roomId.data) {
-      setError("Try again later");
+      room.store.setState({ error: "Try again later" });
       return;
     }
 
@@ -85,7 +80,8 @@ function RouteComponent() {
           <div className="join mt-1 w-72 max-w-full justify-center">
             <button
               className="btn btn-md btn-neutral join-item flex-1"
-              onClick={() => joinModalRef.current?.showModal()}
+              command="show-modal"
+              commandfor="join-modal"
             >
               JOIN
             </button>
@@ -100,7 +96,7 @@ function RouteComponent() {
       </CardBody>
 
       <Portal>
-        <dialog className="modal" ref={joinModalRef}>
+        <dialog className="modal" id="join-modal">
           <form
             className="modal-box space-y-2 text-center"
             method="dialog"

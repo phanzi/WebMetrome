@@ -1,7 +1,7 @@
 import { VOLUME } from "@/constants";
-import { useAtom } from "@/lib/atom";
 import { audio } from "@/lib/audio";
 import type { ComponentProps } from "react";
+import { useStore } from "zustand";
 import { Card, CardBody } from "../Card";
 import { Input } from "../Input";
 
@@ -12,14 +12,12 @@ type Props = ComponentProps<typeof Card> & {
 export function VolumeCard(props: Props) {
   const { disabled = false, ...rest } = props;
 
-  const [volume, setVolume] = useAtom(audio.volume);
+  const volume = useStore(audio.store, (store) => store.volume);
+  const action = useStore(audio.store, (store) => store.action);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const parsed = parseInt(e.target.value) || 0;
-    setVolume(parsed);
-  };
-  const handleDoubleClick = () => {
-    setVolume(VOLUME.DEFAULT);
+    action.setVolume(parsed);
   };
 
   return (
@@ -37,7 +35,7 @@ export function VolumeCard(props: Props) {
             value={volume}
             disabled={disabled}
             onChange={handleChange}
-            onDoubleClick={handleDoubleClick}
+            onDoubleClick={() => action.resetVolume()}
           />
         </div>
         <div className="relative mt-3 text-center">

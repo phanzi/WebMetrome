@@ -4,10 +4,6 @@ import z from "zod";
 import { ROOM_ID_REGEX } from "./constants";
 import { RoomService } from "./roomService";
 
-const querySchema = z.object({
-  roomId: z.string().regex(ROOM_ID_REGEX),
-});
-
 function _shape<
   const T extends string,
   const P extends Record<string, z.ZodType>,
@@ -18,6 +14,10 @@ function _shape<
     payload: z.object(payload),
   });
 }
+
+const querySchema = z.object({
+  roomId: z.string().regex(ROOM_ID_REGEX),
+});
 
 const metronomeMessageSchema = z.union([
   _shape("set-metronome", {

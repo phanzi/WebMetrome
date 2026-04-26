@@ -1,15 +1,21 @@
 import type { PropsWithChildren } from "react";
 import { useEffect, useRef } from "react";
 
-export function InjectSwapActive(props: PropsWithChildren) {
-  const { children } = props;
+type Props = PropsWithChildren<{
+  afterMs?: number;
+}>;
+
+export function SwapReturn(props: Props) {
+  const { children, afterMs = 1000 } = props;
 
   const timer = useRef<NodeJS.Timeout>(undefined);
   const ref = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const element = ref.current;
-    if (!element) return;
+    if (!element) {
+      return;
+    }
 
     element.addEventListener("click", () => {
       if (!element.classList.contains("swap-active")) {
@@ -21,7 +27,7 @@ export function InjectSwapActive(props: PropsWithChildren) {
       timer.current = setTimeout(() => {
         element.classList.remove("swap-active");
         timer.current = undefined;
-      }, 1000);
+      }, afterMs);
     });
   }, []);
 

@@ -4,8 +4,8 @@ import { app } from "@server/app";
 import { Fail, Ok, Result } from "@server/result";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { nanoid } from "nanoid";
-import { atom } from "./atom";
-import { metronome } from "./metronome";
+import { createStore } from "zustand";
+import { metronome, MetronomeOption } from "./metronome";
 
 /**
  * type definitions
@@ -28,9 +28,18 @@ const _getTreaty = createIsomorphicFn()
   .server(() => treaty(app));
 
 const apiRooms = _getTreaty().api.rooms;
-const error = atom("");
-const role = atom<"owner" | "member">("owner");
-const isPending = atom(false);
+
+type Store = {
+  error: string;
+  role: "owner" | "member";
+  isPending: boolean;
+};
+
+const store = createStore<Store>(() => ({
+  error: "",
+  role: "owner",
+  isPending: false,
+}));
 
 let _con: Connection | null = null;
 
@@ -51,9 +60,7 @@ function _listen(con: Connection, onClose?: () => void) {
   const handleData = (data: MessageData) => {
     switch (data.type) {
       case "set-metronome":
-        metronome.bpm.set(data.payload.bpm);
-        metronome.beats.set(data.payload.beats);
-        metronome.subDivision.set(data.payload.subDivision);
+        metronome.store.setState({ option: data.payload });
         break;
       case "play-schedule":
         metronome.play(data.payload.at - room.clockSkew);
@@ -62,10 +69,12 @@ function _listen(con: Connection, onClose?: () => void) {
         metronome.stop();
         break;
       case "promote-owner":
-        role.set("owner");
+        store.setState({ role: "owner" });
         break;
       default:
-        error.set(`Unexpected message: ${(data as unsafe_any).type}`);
+        store.setState({
+          error: `Unexpected message: ${(data as unsafe_any).type}`,
+        });
         console.log(data);
         break;
     }
@@ -73,10 +82,12 @@ function _listen(con: Connection, onClose?: () => void) {
   const handleError = (data: ErrorData) => {
     switch (data.code) {
       case "UNAUTHORIZED":
-        error.set("You are not host");
+        store.setState({ error: "You are not host" });
         break;
       default:
-        error.set(`Unexpected error: ${(data as unsafe_any).code}`);
+        store.setState({
+          error: `Unexpected error: ${(data as unsafe_any).code}`,
+        });
         console.log(data);
         break;
     }
@@ -84,12 +95,13 @@ function _listen(con: Connection, onClose?: () => void) {
   const handleClose = () => {
     onClose?.();
     metronome.stop();
-    role.set("owner");
+    store.setState({ role: "owner" });
     _con = null;
   };
 
   const onMessage = (data: WSResponse) => {
-    if (data.type === "room-joined") return error.set("Already joined");
+    if (data.type === "room-joined")
+      return store.setState({ error: "Already joined" });
     if (data.type === "error") return handleError(data.payload);
     return handleData(data);
   };
@@ -103,8 +115,7 @@ function _listen(con: Connection, onClose?: () => void) {
 }
 
 async function join(roomId: string, onClose?: () => void) {
-  error.set("");
-  isPending.set(true);
+  store.setState({ error: "", isPending: true });
   const calcClockSkew = _getClockSkewCalculator();
   const ctrl = new AbortController();
   const { promise, resolve, reject } =
@@ -145,20 +156,20 @@ async function join(roomId: string, onClose?: () => void) {
 
   return await promise
     .then((data) => {
+      store.setState({ role: data.role });
       room.clockSkew = calcClockSkew(data.now);
-      role.set(data.role);
       _con = con;
       return _listen(con, onClose);
     })
     .catch((cause: string) => {
-      error.set(cause);
+      store.setState({ error: cause });
       con.close();
       throw new Error(cause);
     })
     .finally(() => {
       ctrl.abort();
       clearTimeout(timer);
-      isPending.set(false);
+      store.setState({ isPending: false });
     });
 }
 
@@ -166,13 +177,13 @@ type SendReturn<T extends WSRequest["type"]> =
   | Result<Extract<WSResponse, { type: T }>["payload"], never>
   | Result<never, "UNAUTHORIZED" | "UNEXPECTED">;
 
-async function send<T extends WSRequest["type"]>(
+async function _send<T extends WSRequest["type"]>(
   type: T,
   payload: Extract<WSRequest, { type: T }>["payload"],
 ) {
   if (!_con) return Ok(payload);
 
-  isPending.set(true);
+  store.setState({ isPending: true });
   const id = nanoid();
   const message = { id, type, payload } as WSRequest;
   const { promise, resolve } = Promise.withResolvers<SendReturn<T>>();
@@ -201,7 +212,7 @@ async function send<T extends WSRequest["type"]>(
 
   return await promise.finally(() => {
     ctrl.abort();
-    isPending.set(false);
+    store.setState({ isPending: false });
   });
 }
 
@@ -210,11 +221,23 @@ async function send<T extends WSRequest["type"]>(
  */
 
 export const room = {
-  role,
-  error,
-  isPending,
+  store,
   clockSkew: 0,
   create: () => apiRooms.post(),
   join,
-  send,
+  sync: (partial: Partial<MetronomeOption>) => {
+    return _send("set-metronome", {
+      ...metronome.store.getState().option,
+      ...partial,
+    });
+  },
+  play: () => {
+    return _send("play-schedule", {
+      at: Date.now(),
+      state: metronome.store.getState().option,
+    });
+  },
+  halt: () => {
+    return _send("play-halt", {});
+  },
 };

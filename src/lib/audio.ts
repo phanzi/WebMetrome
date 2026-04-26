@@ -1,5 +1,9 @@
 import { VOLUME } from "@/constants";
-import { atom, persist } from "./atom";
+import { createStore } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { immer } from "zustand/middleware/immer";
+
+export type BeapType = keyof typeof SOUND_PRESETS;
 
 const _activeNodes = new Set<AudioScheduledSourceNode>();
 
@@ -12,10 +16,44 @@ function _getAudioContext() {
   return _audioCtx;
 }
 
-/**
- * range: 0 ~ 100 (%)
- */
-const volumeRatio = persist(VOLUME.PERSIST_KEY, atom(VOLUME.DEFAULT));
+type Store = {
+  volume: number;
+  action: {
+    resetVolume: () => void;
+    setVolume: (volume: number) => void;
+  };
+};
+
+const store = createStore<Store>()(
+  persist(
+    immer((set, _get) => ({
+      /**
+       * range: 0 ~ 100 (%)
+       */
+      volume: VOLUME.DEFAULT,
+      action: {
+        resetVolume: () => {
+          set((state) => {
+            state.volume = store.getInitialState().volume;
+          });
+        },
+        setVolume: (volume: number) => {
+          set((state) => {
+            state.volume = volume;
+          });
+        },
+      },
+    })),
+    {
+      name: "audio",
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        volume: state.volume,
+      }),
+    },
+  ),
+);
 
 type SoundPreset = {
   hz: number;
@@ -64,7 +102,7 @@ export function scheduleSound(
 ) {
   const preset = SOUND_PRESETS[presetKey];
   const { hz, gain } = preset;
-  const volumeMul = volumeRatio.get() / 100;
+  const volumeMul = store.getState().volume / 100;
 
   // Create oscillator
   const osc = ctx.createOscillator();
@@ -111,8 +149,7 @@ async function suspend() {
  */
 
 export const audio = {
-  PRESETS: SOUND_PRESETS,
-  volume: volumeRatio,
+  store,
   schedule: scheduleSound,
   resume,
   suspend,

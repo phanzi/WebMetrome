@@ -1,44 +1,28 @@
-import { SAVED_STATES, SUB_DIVISION } from "@/constants";
-import { atom, persist, useAtom } from "@/lib/atom";
-import type { MetronomeState } from "@/lib/metronome";
+import { metronome, type MetronomeOption } from "@/lib/metronome";
 import { cn } from "@/lib/utils";
 import { InfoIcon } from "lucide-react";
-import { useRef } from "react";
+import { useStore } from "zustand";
 import { Card, CardBody } from "../Card";
 import { NoteIcon } from "../NoteIcon";
-import { Portal } from "../portal";
+import { Portal } from "../Portal";
 
 type Props = {
-  state: MetronomeState;
-  onLoad: (state: MetronomeState) => void;
+  onLoad: (options: MetronomeOption) => void;
   disabled?: boolean;
   className?: string;
 };
 
-type SavedState = MetronomeState & {
-  name: string;
-};
-const savedStatesAtom = persist(
-  SAVED_STATES.PERSIST_KEY,
-  atom<SavedState[]>([]),
-);
+export function SavedCard(props: Props) {
+  const { onLoad, disabled = false, className = "" } = props;
 
-export function SavedStatesCard(props: Props) {
-  const { state, onLoad, disabled = false, className = "" } = props;
-
-  const [savedStates, setSavedStates] = useAtom(savedStatesAtom);
-  const saveModal = useRef<HTMLDialogElement>(null);
-
-  const handleDelete = (index: number) => {
-    const newSavedStates = savedStates.toSpliced(index, 1);
-    setSavedStates(newSavedStates);
-  };
+  const saved = useStore(metronome.store, (store) => store.saved);
+  const actions = useStore(metronome.store, (store) => store.actions);
 
   const handleSaveSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     const formData = new FormData(e.currentTarget);
     const name = formData.get("state-name")?.toString() ?? "";
     e.currentTarget.reset();
-    setSavedStates((prev) => [...prev, { ...state, name }]);
+    actions.saveOption(name);
   };
 
   return (
@@ -59,35 +43,35 @@ export function SavedStatesCard(props: Props) {
           </button>
         </div>
 
-        {savedStates.length === 0 ? (
+        {saved.length === 0 ? (
           <p className="text-center">
             Press <b>Save</b> to store current settings.
           </p>
         ) : (
           <div>
-            {savedStates.map((savedState, i) => (
+            {saved.map((saved, i) => (
               <div className="flex w-full gap-2 border-dashed py-1" key={i}>
                 <button
                   className="btn btn-soft btn-error max-w-14 flex-1"
-                  onClick={() => handleDelete(i)}
+                  onClick={() => actions.deleteOption(i)}
                   disabled={disabled}
                 >
                   DEL
                 </button>
                 <button
                   className="btn btn-soft btn-primary flex-1 justify-between font-normal"
-                  onClick={() => onLoad(savedState)}
+                  onClick={() => onLoad(saved.option)}
                   disabled={disabled}
                 >
                   <span className="w-0 grow truncate">
-                    {savedState.name || "Unnamed"}
+                    {saved.name || "Unnamed"}
                   </span>
                   <div className="flex h-full items-center gap-1">
-                    <b className="text-lg">{savedState.bpm}</b> /
-                    <b className="text-lg">{savedState.beats}</b> /
+                    <b className="text-lg">{saved.option.bpm}</b> /
+                    <b className="text-lg">{saved.option.beats}</b> /
                     <NoteIcon
                       className="h-full"
-                      type={savedState.subDivision || SUB_DIVISION.DEFAULT}
+                      type={saved.option.subDivision}
                     />
                   </div>
                 </button>
@@ -99,9 +83,10 @@ export function SavedStatesCard(props: Props) {
           <button
             className={cn(
               "btn btn-soft motion-safe:transition-all motion-safe:duration-500",
-              savedStates.length > 0 ? "w-full max-w-full" : "btn-wide",
+              saved.length > 0 ? "w-full max-w-full" : "btn-wide",
             )}
-            onClick={() => saveModal.current?.showModal()}
+            command="show-modal"
+            commandfor="save-modal"
             disabled={disabled}
           >
             SAVE
@@ -110,7 +95,7 @@ export function SavedStatesCard(props: Props) {
       </CardBody>
 
       <Portal>
-        <dialog className="modal" ref={saveModal}>
+        <dialog className="modal" id="save-modal">
           <form
             className="modal-box space-y-2 text-center"
             method="dialog"

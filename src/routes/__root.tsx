@@ -1,16 +1,14 @@
 import { BeatDot } from "@/components/BeatDot";
 import { Card } from "@/components/Card";
-import { ThemeButton } from "@/components/ThemeButtont";
 import { BeatCard } from "@/components/ctrl/BeatCard";
 import { BpmCard } from "@/components/ctrl/BpmCard";
 import { LatencyOffsetCard } from "@/components/ctrl/LatencyCard";
-import { SavedStatesCard } from "@/components/ctrl/SavedStatesCard";
+import { SavedCard } from "@/components/ctrl/SavedCard";
 import { VolumeCard } from "@/components/ctrl/VolumeCard";
-import { SUB_DIVISION } from "@/constants";
-import { useAtom } from "@/lib/atom";
-import { metronome } from "@/lib/metronome";
+import { metronome, MetronomeOption } from "@/lib/metronome";
 import { room } from "@/lib/room";
-import { cn } from "@/lib/utils";
+import { ThemeContext, ThemeProvider } from "@/lib/theme";
+import { cn, ContextConsumer } from "@/lib/utils";
 import {
   createRootRoute,
   HeadContent,
@@ -19,11 +17,12 @@ import {
   useMatch,
 } from "@tanstack/react-router";
 import { range } from "es-toolkit";
-import { UnplugIcon } from "lucide-react";
+import { MoonIcon, SunIcon, SunMoonIcon, UnplugIcon } from "lucide-react";
+import { useStore } from "zustand";
 import "../index.css";
 
 export const Route = createRootRoute({
-  ssr: false,
+  ssr: true,
   shellComponent: ({ children }) => {
     return (
       <html>
@@ -31,15 +30,14 @@ export const Route = createRootRoute({
           <HeadContent />
         </head>
         <body>
-          {children}
-          <div className="contents" id="portal-exit"></div>
+          <ThemeProvider>
+            {children}
+            <div className="contents" id="portal-exit"></div>
+          </ThemeProvider>
           <Scripts />
         </body>
       </html>
     );
-  },
-  notFoundComponent: () => {
-    return <p>Not Found</p>;
   },
   head: () => {
     return {
@@ -51,7 +49,7 @@ export const Route = createRootRoute({
           content: "Sync Metronome - sync beats sound anywhere",
         },
         { name: "viewport", content: "width=device-width, initial-scale=1.0" },
-        // { name: "theme-color" }, // Loaded dynamically by theme.ts
+        { name: "theme-color" },
         // open graph
         { property: "og:title", content: "Sync Metronome" },
         {
@@ -89,83 +87,54 @@ function RootLayout() {
   /**
    * metronome state
    */
-  const [bpm, setBpm] = useAtom(metronome.bpm);
-  const [beats, setBeats] = useAtom(metronome.beats);
-  const [subDivision, setSubDivision] = useAtom(metronome.subDivision);
-  const [beatIndex] = useAtom(metronome.beatIndex);
-  const [isPlaying] = useAtom(metronome.isPlaying);
+  const bpm = useStore(metronome.store, (store) => store.option.bpm);
+  const beats = useStore(metronome.store, (store) => store.option.beats);
+  const subDivision = useStore(
+    metronome.store,
+    (store) => store.option.subDivision,
+  );
+  const beatIndex = useStore(metronome.store, (store) => store.beatIndex);
+  const isPlaying = useStore(metronome.store, (store) => store.isPlaying);
 
   /**
    * room state
    */
-  const [isPending] = useAtom(room.isPending);
-  const [role] = useAtom(room.role);
+  const role = useStore(room.store, (store) => store.role);
+  const isPending = useStore(room.store, (store) => store.isPending);
   const match = useMatch({ from: "/rooms/$roomId", shouldThrow: false });
 
-  const handleSetBpm = async (bpm: number) => {
-    console.log("handleSetBpm", bpm);
-    const result = await room.send("set-metronome", {
-      bpm,
-      beats,
-      subDivision,
-    });
+  const changeOption = async (partial: Partial<MetronomeOption>) => {
+    const option: MetronomeOption = {
+      ...metronome.store.getState().option,
+      ...partial,
+    };
+    const result = await room.sync(option);
     if (result.success) {
-      setBpm(bpm);
-    } else {
-      alert(result.message);
-    }
-  };
-  const handleSetBeats = async (beats: number) => {
-    const result = await room.send("set-metronome", {
-      bpm,
-      beats,
-      subDivision,
-    });
-    if (result.success) {
-      setBeats(beats);
-    } else {
-      alert(result.message);
-    }
-  };
-  const handleSetSubDivision = async (
-    subDivision: ReturnType<typeof metronome.subDivision.get>,
-  ) => {
-    const result = await room.send("set-metronome", {
-      bpm,
-      beats,
-      subDivision,
-    });
-    if (result.success) {
-      setSubDivision(subDivision);
+      metronome.store.setState({ option });
     } else {
       alert(result.message);
     }
   };
   const togglePlay = async () => {
     if (isPlaying) {
-      const result = await room.send("play-halt", {});
+      const result = await room.halt();
       if (result.success) {
         metronome.stop();
       } else {
         alert(result.message);
       }
     } else {
-      const result = await room.send("play-schedule", {
-        at: Date.now(),
-        state: {
-          bpm,
-          beats,
-          subDivision,
-        },
-      });
+      const result = await room.play();
       if (result.success) {
         metronome.play(result.data.at - room.clockSkew);
+      } else {
+        alert(result.message);
       }
     }
   };
 
   const isOnline = match?.status === "success";
-  const editDisabled = isPending || isPlaying || (isOnline && role !== "owner");
+  const editDisabled = isPending || (isOnline && role !== "owner") || isPlaying;
   const playDisabled = isPending || (isOnline && role !== "owner");
 
   return (
@@ -192,7 +161,16 @@ function RootLayout() {
         </div>
 
         <h1 className="text-2xl font-bold">Sync Metronome</h1>
-        <ThemeButton />
+        <ContextConsumer context={ThemeContext}>
+          {({ value, next }) => (
+            <button className="btn" onClick={next}>
+              {value === "light" ? <SunIcon /> : null}
+              {value === "dark" ? <MoonIcon /> : null}
+              {value === "system" ? <SunMoonIcon /> : null}
+              <span className="sr-only">change theme to {value}</span>
+            </button>
+          )}
+        </ContextConsumer>
       </header>
 
       <main className="space-y-4">
@@ -208,6 +186,7 @@ function RootLayout() {
                 beats > 10 && "gap-1.5",
                 beats > 20 && "gap-1",
                 beats > 40 && "gap-0.5",
+                beats > 80 && "gap-0.25",
               )}
             >
               {range(0, beats).map((i) => (
@@ -223,21 +202,20 @@ function RootLayout() {
           </div>
         </Card>
 
-        <BpmCard bpm={bpm} onChange={handleSetBpm} disabled={editDisabled} />
-        <BeatCard
-          beats={beats}
-          onBeatsChange={handleSetBeats}
-          subDivision={subDivision}
-          onSubDivisionChange={handleSetSubDivision}
+        <BpmCard
+          bpm={bpm}
+          onChange={(bpm) => changeOption({ bpm })}
           disabled={editDisabled}
         />
-        <SavedStatesCard
-          state={{ bpm, beats, subDivision }}
-          onLoad={({ bpm, beats, subDivision }) => {
-            handleSetBpm(bpm);
-            handleSetBeats(beats);
-            handleSetSubDivision(subDivision || SUB_DIVISION.DEFAULT);
-          }}
+        <BeatCard
+          beats={beats}
+          onBeatsChange={(beats) => changeOption({ beats })}
+          subDivision={subDivision}
+          onSubDivisionChange={(subDivision) => changeOption({ subDivision })}
+          disabled={editDisabled}
+        />
+        <SavedCard
+          onLoad={(option) => changeOption(option)}
           disabled={editDisabled}
         />
       </main>

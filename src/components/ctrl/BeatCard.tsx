@@ -23,10 +23,6 @@ export function BeatCard(props: Props) {
     className,
   } = props;
 
-  const handleDoubleClick = () => {
-    onBeatsChange(BEATS.DEFAULT);
-  };
-
   return (
     <Card className={className}>
       <CardBody>
@@ -42,7 +38,7 @@ export function BeatCard(props: Props) {
             value={beats}
             disabled={disabled}
             onChange={(e) => onBeatsChange(parseInt(e.target.value) || 0)}
-            onDoubleClick={handleDoubleClick}
+            onDoubleClick={() => onBeatsChange(BEATS.DEFAULT)}
           />
         </div>
         <div className="join mt-3">

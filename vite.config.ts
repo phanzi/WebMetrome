@@ -25,22 +25,6 @@ export default defineConfig({
       presets: [reactCompilerPreset()],
     }),
     tailwindcss(),
-    // VitePWA({
-    //   registerType: "autoUpdate",
-    //   injectRegister: "auto",
-    //   devOptions: {
-    //     enabled: true,
-    //   },
-    //   pwaAssets: {
-    //     integration: {
-    //       outDir: "out/dist", // cwd 기준
-    //     },
-    //     injectThemeColor: false,
-    //   },
-    //   manifest: {
-    //     theme_color: "#377CFB", // light mode primary color
-    //   },
-    // }),
   ],
   server: {
     port: 3000,
