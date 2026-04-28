@@ -81,8 +81,12 @@ export function ThemeProvider(props: PropsWithChildren) {
           `(function() {`,
           `const value = localStorage.getItem("theme")`,
           `if (!value) return`,
-          `if (value === "system") return`,
-          `document.documentElement.setAttribute("data-theme", value)`,
+          `try {`,
+          `const parsed = JSON.parse(value);`,
+          `if (!parsed.value) return`,
+          `if (parsed.value === "system") return`,
+          `document.documentElement.setAttribute("data-theme", parsed.value)`,
+          `} catch {}`,
           `})()`,
         ].join("\n")}
       </ScriptOnce>

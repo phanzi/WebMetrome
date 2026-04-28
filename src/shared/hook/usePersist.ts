@@ -8,11 +8,11 @@ export function usePersist<S>(
   const [value, setValue] = stateReturn;
 
   useEffect(() => {
-    const value = localStorage.getItem(key);
-    if (value) {
+    const itemValue = localStorage.getItem(key);
+    if (itemValue) {
       try {
-        const parsed = JSON.parse(value) as { value: S };
-        setValue(parsed.value);
+        const parsed = JSON.parse(itemValue) as { value: S };
+        setValue(parsed.value || value);
       } catch {}
     }
   }, []);
