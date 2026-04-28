@@ -1,5 +1,4 @@
 import { treaty } from "@elysiajs/eden";
-import type { App } from "@server/app";
 import { app } from "@server/app";
 import { Fail, Ok, Result } from "@server/result";
 import { createIsomorphicFn } from "@tanstack/react-start";
@@ -11,6 +10,7 @@ import { metronome, MetronomeOption } from "./metronome";
  * type definitions
  */
 
+type App = typeof app;
 type WS = App["~Routes"]["api"]["rooms"]["subscribe"];
 type Connection = ReturnType<typeof apiRooms.subscribe>;
 type WSRequest = WS["body"];
@@ -75,7 +75,6 @@ function _listen(con: Connection, onClose?: () => void) {
         store.setState({
           error: `Unexpected message: ${(data as unsafe_any).type}`,
         });
-        console.log(data);
         break;
     }
   };
@@ -88,7 +87,6 @@ function _listen(con: Connection, onClose?: () => void) {
         store.setState({
           error: `Unexpected error: ${(data as unsafe_any).code}`,
         });
-        console.log(data);
         break;
     }
   };

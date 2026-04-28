@@ -1,14 +1,15 @@
 import { Card, CardBody } from "@/components/Card";
-import { Portal } from "@/components/Portal";
 import { QrcodeImg } from "@/components/QrcodeSvg";
+import { Portal } from "@/components/portal";
 import { SwapReturn } from "@/components/swap";
-import { room } from "@/lib/room";
 import { getRouter } from "@/router";
+import { room } from "@/shared/lib/room";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckIcon, CopyIcon, QrCodeIcon } from "lucide-react";
 import { useStore } from "zustand";
 
 export const Route = createFileRoute("/rooms/$roomId")({
+  ssr: false,
   loader: async ({ params }) => {
     return await room.join(params.roomId, () => {
       getRouter().navigate({ to: "/", replace: true });

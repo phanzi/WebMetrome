@@ -1,6 +1,6 @@
 import { BEATS, SUB_DIVISION } from "@/constants";
-import { type SubDivision } from "@/lib/metronome";
-import { cn } from "@/lib/utils";
+import { type SubDivision } from "@/shared/lib/metronome";
+import { cn } from "@/shared/lib/utils";
 import { Card, CardBody } from "../Card";
 import { NoteIcon } from "../NoteIcon";
 

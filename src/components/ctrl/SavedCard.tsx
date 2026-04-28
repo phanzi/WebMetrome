@@ -1,10 +1,10 @@
-import { metronome, type MetronomeOption } from "@/lib/metronome";
-import { cn } from "@/lib/utils";
+import { metronome, type MetronomeOption } from "@/shared/lib/metronome";
+import { cn } from "@/shared/lib/utils";
 import { InfoIcon } from "lucide-react";
 import { useStore } from "zustand";
 import { Card, CardBody } from "../Card";
 import { NoteIcon } from "../NoteIcon";
-import { Portal } from "../Portal";
+import { Portal } from "../portal";
 
 type Props = {
   onLoad: (options: MetronomeOption) => void;

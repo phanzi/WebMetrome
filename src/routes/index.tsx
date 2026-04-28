@@ -1,6 +1,6 @@
 import { Card, CardBody } from "@/components/Card";
-import { Portal } from "@/components/Portal";
-import { room } from "@/lib/room";
+import { Portal } from "@/components/portal";
+import { room } from "@/shared/lib/room";
 import { ROOM_ID_MIN_LENGTH, ROOM_ID_REGEX } from "@server/constants";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";

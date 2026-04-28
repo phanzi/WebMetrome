@@ -1,5 +1,5 @@
 import { BPM } from "@/constants";
-import { audio } from "@/lib/audio";
+import { audio } from "@/shared/lib/audio";
 import { useEffect, useRef, useState } from "react";
 import { Card, CardBody } from "../Card";
 

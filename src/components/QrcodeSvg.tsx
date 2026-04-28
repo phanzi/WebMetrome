@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/lib/utils";
 import { type ComponentProps } from "react";
 import { renderSVG } from "uqr";
 
@@ -18,7 +18,7 @@ export function QrcodeImg(props: ComponentProps<"img">) {
 
   return (
     <img
-      className={cn("h-full w-full", className)}
+      className={cn("h-full w-full rounded-2xl", className)}
       src={generateUrl(src ?? "")}
       {...rest}
       onLoad={handleLoad}

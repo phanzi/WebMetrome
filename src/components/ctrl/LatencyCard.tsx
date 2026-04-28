@@ -1,5 +1,5 @@
 import { OFFSET } from "@/constants";
-import { metronome } from "@/lib/metronome";
+import { metronome } from "@/shared/lib/metronome";
 import { ComponentProps } from "react";
 import { useStore } from "zustand";
 import { Card, CardBody } from "../Card";

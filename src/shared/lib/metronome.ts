@@ -1,6 +1,10 @@
 import { BEATS, BPM, OFFSET, PLAY_DELAY_MS, SUB_DIVISION } from "@/constants";
 import { delay } from "es-toolkit";
-import { createJSONStorage, persist } from "zustand/middleware";
+import {
+  createJSONStorage,
+  persist,
+  subscribeWithSelector,
+} from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { createStore } from "zustand/vanilla";
 import { audio, BeapType } from "./audio";
@@ -30,39 +34,41 @@ type Store = {
 
 const store = createStore<Store>()(
   persist(
-    immer((set, _get) => ({
-      option: {
-        bpm: BPM.DEFAULT,
-        beats: BEATS.DEFAULT,
-        subDivision: SUB_DIVISION.DEFAULT,
-      },
-      saved: [],
-      beatIndex: -1,
-      offset: OFFSET.DEFAULT,
-      isPlaying: false,
-      actions: {
-        resetOption: (key) => {
-          set((state) => {
-            state.option[key] = store.getInitialState().option[key];
-          });
+    subscribeWithSelector(
+      immer((set, _get) => ({
+        option: {
+          bpm: BPM.DEFAULT,
+          beats: BEATS.DEFAULT,
+          subDivision: SUB_DIVISION.DEFAULT,
         },
-        setOption: (partial) => {
-          set((state) => {
-            state.option = { ...state.option, ...partial };
-          });
+        saved: [],
+        beatIndex: -1,
+        offset: OFFSET.DEFAULT,
+        isPlaying: false,
+        actions: {
+          resetOption: (key) => {
+            set((state) => {
+              state.option[key] = store.getInitialState().option[key];
+            });
+          },
+          setOption: (partial) => {
+            set((state) => {
+              state.option = { ...state.option, ...partial };
+            });
+          },
+          saveOption: (name) => {
+            set((state) => {
+              state.saved.push({ name, option: state.option });
+            });
+          },
+          deleteOption: (index) => {
+            set((state) => {
+              state.saved.splice(index, 1);
+            });
+          },
         },
-        saveOption: (name) => {
-          set((state) => {
-            state.saved.push({ name, option: state.option });
-          });
-        },
-        deleteOption: (index) => {
-          set((state) => {
-            state.saved.splice(index, 1);
-          });
-        },
-      },
-    })),
+      })),
+    ),
     {
       version: 1,
       name: "metronome",

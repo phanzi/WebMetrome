@@ -2,7 +2,7 @@ import QuaterIcon from "@/assets/note/quater.svg?react";
 import QuaversIcon from "@/assets/note/quavers.svg?react";
 import SemiquaversIcon from "@/assets/note/semiquavers.svg?react";
 import TripletIcon from "@/assets/note/triplet.svg?react";
-import type { SubDivision } from "@/lib/metronome";
+import type { SubDivision } from "@/shared/lib/metronome";
 
 type NoteType = SubDivision;
 

@@ -1,5 +1,5 @@
 import { VOLUME } from "@/constants";
-import { audio } from "@/lib/audio";
+import { audio } from "@/shared/lib/audio";
 import type { ComponentProps } from "react";
 import { useStore } from "zustand";
 import { Card, CardBody } from "../Card";

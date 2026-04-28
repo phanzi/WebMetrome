@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/lib/utils";
 import { ComponentProps } from "react";
 
 export function Card(props: ComponentProps<"div">) {
