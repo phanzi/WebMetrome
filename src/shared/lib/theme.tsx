@@ -1,4 +1,5 @@
 import { THEME } from "@/constants";
+import { ScriptOnce } from "@tanstack/react-router";
 import type { PropsWithChildren } from "react";
 import { createContext, useEffect, useState } from "react";
 import { useIsServer } from "../hook/useIsServer";
@@ -75,6 +76,16 @@ export function ThemeProvider(props: PropsWithChildren) {
   return (
     <ThemeContext.Provider value={{ value, compute, next }}>
       {children}
+      <ScriptOnce>
+        {[
+          `(function() {`,
+          `const value = localStorage.getItem("theme")`,
+          `if (!value) return`,
+          `if (value === "system") return`,
+          `document.documentElement.setAttribute("data-theme", value)`,
+          `})()`,
+        ].join("\n")}
+      </ScriptOnce>
     </ThemeContext.Provider>
   );
 }

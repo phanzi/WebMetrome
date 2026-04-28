@@ -25,7 +25,7 @@ export const Route = createRootRoute({
   ssr: true,
   shellComponent: ({ children }) => {
     return (
-      <html>
+      <html suppressHydrationWarning>
         <head>
           <HeadContent />
         </head>
@@ -88,6 +88,10 @@ export const Route = createRootRoute({
         },
         { rel: "apple-touch-icon", href: "/apple-touch-icon-180x180.png" },
         { rel: "canonical", href: import.meta.env.VITE_PUBLIC_URL },
+      ],
+      scripts: [
+        //
+        { src: "/unregistSW.js" },
       ],
     };
   },

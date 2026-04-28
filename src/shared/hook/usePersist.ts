@@ -10,8 +10,10 @@ export function usePersist<S>(
   useEffect(() => {
     const value = localStorage.getItem(key);
     if (value) {
-      const parsed = JSON.parse(value) as { value: S };
-      setValue(parsed.value);
+      try {
+        const parsed = JSON.parse(value) as { value: S };
+        setValue(parsed.value);
+      } catch {}
     }
   }, []);
 
