@@ -14,12 +14,6 @@ export default defineConfig({
         enabled: true,
       },
     }),
-    // tanstackRouter({
-    //   routesDirectory: "./routes",
-    //   generatedRouteTree: "./routeTree.gen.ts",
-    //   target: "react",
-    //   autoCodeSplitting: true,
-    // }),
     react(),
     babel({
       presets: [reactCompilerPreset()],

@@ -6,10 +6,9 @@
   "author": "phanzi",
   "license": "MIT",
   "scripts": {
-    "dev": "concurrently \"vite dev\" \"bun --env-file=.env.development --watch server/index.ts\"",
-    "build": "vite build && bun --env-file=.env.production build server/index.ts --compile --outfile=out/server",
-    "start": "bun --env-file=.env.production run _start:all",
-    "_start:all": "concurrently -k \"node ${TANSTACK_SERVER_ENTRY}\" \"./out/server\"",
+    "dev": "concurrently \"vite dev\" \"bun --watch server/index.ts\"",
+    "build": "vite build && __PROD__=true bun build --env '__*__' server/index.ts --compile --outfile=dist/start && rm -rf dist/server",
+    "start": "./dist/start",
     "format": "prettier --write .",
     "lint": "eslint .",
     "tsc": "tsc --noEmit",

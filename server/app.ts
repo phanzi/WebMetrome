@@ -62,7 +62,6 @@ export function createApp() {
     prefix: "/api",
   })
     .post("/rooms", () => {
-      console.log("test");
       return roomService.readyRoom();
     })
     .ws("/rooms", {
@@ -162,5 +161,3 @@ export function createApp() {
 }
 
 export const app = createApp();
-
-export type App = typeof app;
