@@ -5,10 +5,10 @@ import { BpmCard } from "@/components/ctrl/BpmCard";
 import { LatencyOffsetCard } from "@/components/ctrl/LatencyCard";
 import { SavedCard } from "@/components/ctrl/SavedCard";
 import { VolumeCard } from "@/components/ctrl/VolumeCard";
-import { metronome, MetronomeOption } from "@/lib/metronome";
-import { room } from "@/lib/room";
-import { ThemeContext, ThemeProvider } from "@/lib/theme";
-import { cn, ContextConsumer } from "@/lib/utils";
+import { metronome, MetronomeOption } from "@/shared/lib/metronome";
+import { room } from "@/shared/lib/room";
+import { ThemeContext, ThemeProvider } from "@/shared/lib/theme";
+import { cn, ContextConsumer } from "@/shared/lib/utils";
 import {
   createRootRoute,
   HeadContent,
@@ -77,7 +77,18 @@ export const Route = createRootRoute({
         },
         { property: "twitter:url", content: import.meta.env.VITE_PUBLIC_URL },
       ],
-      links: [{ rel: "canonical", href: import.meta.env.VITE_PUBLIC_URL }],
+      links: [
+        { rel: "manifest", href: "/manifest.webmanifest" },
+        { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
+        {
+          rel: "icon",
+          href: "/favicon.svg",
+          sizes: "any",
+          type: "image/svg+xml",
+        },
+        { rel: "apple-touch-icon", href: "/apple-touch-icon-180x180.png" },
+        { rel: "canonical", href: import.meta.env.VITE_PUBLIC_URL },
+      ],
     };
   },
   component: RootLayout,
