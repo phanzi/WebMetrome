@@ -14,8 +14,8 @@ RUN bun run build
 FROM alpine AS runner
 WORKDIR /app
 RUN apk add libstdc++
-COPY --from=builder /app/out ./out
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 4000
 
-CMD ["./out/server"]
+CMD ["./dist/start"]

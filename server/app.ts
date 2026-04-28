@@ -1,14 +1,10 @@
 import { Elysia } from "elysia";
 import { nanoid } from "nanoid";
 import z from "zod";
-import { ROOM_ID_REGEX } from "./domain/constants";
-import { RoomService } from "./domain/roomService";
+import { ROOM_ID_REGEX } from "./constants";
+import { RoomService } from "./roomService";
 
-const querySchema = z.object({
-  roomId: z.string().regex(ROOM_ID_REGEX),
-});
-
-function _createResponseSchmea<
+function _shape<
   const T extends string,
   const P extends Record<string, z.ZodType>,
 >(type: T, payload: P) {
@@ -19,13 +15,17 @@ function _createResponseSchmea<
   });
 }
 
-const messageSchema = z.union([
-  _createResponseSchmea("set-metronome", {
+const querySchema = z.object({
+  roomId: z.string().regex(ROOM_ID_REGEX),
+});
+
+const metronomeMessageSchema = z.union([
+  _shape("set-metronome", {
     bpm: z.number(),
     beats: z.number(),
     subDivision: z.enum(["quater", "quavers", "triplet", "semiquavers"]),
   }),
-  _createResponseSchmea("play-schedule", {
+  _shape("play-schedule", {
     // ms Unix timestamp
     at: z.number(),
     // metronome state
@@ -35,36 +35,38 @@ const messageSchema = z.union([
       subDivision: z.enum(["quater", "quavers", "triplet", "semiquavers"]),
     }),
   }),
-  _createResponseSchmea("play-halt", {}),
+  _shape("play-halt", {}),
 ]);
 
-const responseSchema = messageSchema.or(
-  z.union([
-    _createResponseSchmea("room-joined", {
-      now: z.number(),
-      roomId: z.string(),
-      role: z.literal(["owner", "member"]),
-    }),
-    _createResponseSchmea("promote-owner", {}),
-    _createResponseSchmea("error", {
-      code: z.literal(["UNAUTHORIZED", "ROOM_NOT_FOUND"]),
-      message: z.string(),
-    }),
-  ]),
-);
+const roomMessageSchema = z.union([
+  _shape("room-joined", {
+    now: z.number(),
+    roomId: z.string(),
+    role: z.literal(["owner", "member"]),
+  }),
+  _shape("promote-owner", {}),
+  _shape("error", {
+    code: z.literal(["UNAUTHORIZED", "ROOM_NOT_FOUND"]),
+    message: z.string(),
+  }),
+]);
 
-export type ResponseSchema = z.output<typeof responseSchema>;
+const responseSchema = metronomeMessageSchema.or(roomMessageSchema);
+
+type ResponseSchema = z.output<typeof responseSchema>;
 
 export function createApp() {
   const roomService = new RoomService<ResponseSchema>();
 
-  return new Elysia()
-    .post("/rooms", () => roomService.readyRoom())
-    .guard({
-      query: querySchema,
+  return new Elysia({
+    prefix: "/api",
+  })
+    .post("/rooms", () => {
+      return roomService.readyRoom();
     })
     .ws("/rooms", {
-      body: messageSchema,
+      query: querySchema,
+      body: metronomeMessageSchema,
       response: responseSchema,
       open(ws) {
         const roomId = ws.data.query.roomId;
@@ -159,5 +161,3 @@ export function createApp() {
 }
 
 export const app = createApp();
-
-export type App = typeof app;

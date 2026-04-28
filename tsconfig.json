@@ -1,6 +1,9 @@
 {
+  /**
+   * @see https://tanstack.com/start/latest/docs/framework/react/build-from-scratch#typescript-configuration
+   */
   "compilerOptions": {
-    "target": "ESNext",
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "types": ["bun"],
     "allowJs": true,
@@ -10,27 +13,28 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": false,
     "strictNullChecks": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
     "paths": {
-      "@/*": ["./client/*"],
+      "@/*": ["./src/*"],
       "@server/*": ["./server/*"]
     }
   },
   "include": [
-    "client/**/*.ts",
-    "client/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     "server/**/*.ts",
     "server/**/*.tsx",
     "tests/**/*.ts",
     "scripts/**/*.ts",
     "vite.config.ts",
-    "client/vite-env.d.ts"
+    "vite-env.d.ts"
   ],
   "exclude": ["node_modules", "out", "dist"]
 }
