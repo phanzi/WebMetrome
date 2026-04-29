@@ -1,6 +1,7 @@
 import { BeatDot } from "@/components/BeatDot";
 import { Card } from "@/components/Card";
 import { BeatCard } from "@/components/ctrl/BeatCard";
+import { BeatHzCard } from "@/components/ctrl/BeatHzCard";
 import { BpmCard } from "@/components/ctrl/BpmCard";
 import { LatencyOffsetCard } from "@/components/ctrl/LatencyCard";
 import { SavedCard } from "@/components/ctrl/SavedCard";
@@ -8,6 +9,7 @@ import { VolumeCard } from "@/components/ctrl/VolumeCard";
 import { metronome, MetronomeOption } from "@/shared/lib/metronome";
 import { room } from "@/shared/lib/room";
 import { ThemeContext, ThemeProvider } from "@/shared/lib/theme";
+import { toast, Toasts } from "@/shared/lib/toast";
 import { cn, ContextConsumer } from "@/shared/lib/utils";
 import {
   createRootRoute,
@@ -33,6 +35,7 @@ export const Route = createRootRoute({
           <ThemeProvider>
             {children}
             <div className="contents" id="portal-exit"></div>
+            <Toasts />
           </ThemeProvider>
           <Scripts />
         </body>
@@ -127,7 +130,7 @@ function RootLayout() {
     if (result.success) {
       metronome.store.setState({ option });
     } else {
-      alert(result.message);
+      toast.push(result.message);
     }
   };
   const togglePlay = async () => {
@@ -136,14 +139,14 @@ function RootLayout() {
       if (result.success) {
         metronome.stop();
       } else {
-        alert(result.message);
+        toast.push(result.message);
       }
     } else {
       const result = await room.play();
       if (result.success) {
         metronome.play(result.data.at - room.clockSkew);
       } else {
-        alert(result.message);
+        toast.push(result.message);
       }
     }
   };
@@ -171,6 +174,7 @@ function RootLayout() {
               <Outlet />
               <VolumeCard />
               <LatencyOffsetCard />
+              <BeatHzCard />
             </div>
           </div>
         </div>
@@ -247,6 +251,7 @@ function RootLayout() {
           {isPlaying ? "STOP" : "START"}
         </button>
       </footer>
+      <Toasts />
     </div>
   );
 }

@@ -59,7 +59,7 @@ export function BpmCard(props: Props) {
         <h2 className="card-title justify-center">BPM</h2>
         <div className="relative flex items-center justify-center gap-2 text-center">
           <input
-            className="input input-ghost text-center text-5xl"
+            className="input input-ghost text-center text-4xl"
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"

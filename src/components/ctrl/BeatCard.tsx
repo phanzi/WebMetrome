@@ -29,7 +29,7 @@ export function BeatCard(props: Props) {
         <h2 className="card-title justify-center">Beats (박자)</h2>
         <div className="text-center">
           <input
-            className="input input-ghost text-center text-5xl"
+            className="input input-ghost text-center text-4xl"
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"

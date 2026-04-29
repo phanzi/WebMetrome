@@ -1,4 +1,5 @@
 export const PLAY_DELAY_MS = 50;
+export const DEFAULT_TOAST_DURATION_MS = 1000;
 
 export const BPM = {
   DEFAULT: 120,

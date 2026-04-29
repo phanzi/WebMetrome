@@ -25,7 +25,7 @@ export function LatencyOffsetCard(props: Props) {
         <h2 className="card-title justify-center">Latency Offset</h2>
         <div className="text-center">
           <Input
-            className="input input-ghost text-center text-5xl"
+            className="input input-ghost text-center text-4xl"
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"

@@ -99,18 +99,18 @@ function _scheduleNote(
       break;
     case "quavers":
       _scheduleBeat(ctx, beapType, noteAtSec);
-      _scheduleBeat(ctx, "SUB", noteAtSec + 30 / bpm);
+      _scheduleBeat(ctx, "sub", noteAtSec + 30 / bpm);
       break;
     case "triplet":
       _scheduleBeat(ctx, beapType, noteAtSec);
-      _scheduleBeat(ctx, "SUB", noteAtSec + 20 / bpm);
-      _scheduleBeat(ctx, "SUB", noteAtSec + 40 / bpm);
+      _scheduleBeat(ctx, "sub", noteAtSec + 20 / bpm);
+      _scheduleBeat(ctx, "sub", noteAtSec + 40 / bpm);
       break;
     case "semiquavers":
       _scheduleBeat(ctx, beapType, noteAtSec);
-      _scheduleBeat(ctx, "SUB", noteAtSec + 15 / bpm);
-      _scheduleBeat(ctx, "SUB", noteAtSec + 30 / bpm);
-      _scheduleBeat(ctx, "SUB", noteAtSec + 45 / bpm);
+      _scheduleBeat(ctx, "sub", noteAtSec + 15 / bpm);
+      _scheduleBeat(ctx, "sub", noteAtSec + 30 / bpm);
+      _scheduleBeat(ctx, "sub", noteAtSec + 45 / bpm);
       break;
   }
 }
@@ -124,7 +124,7 @@ function _schedule(
   while (_nextNoteSec < ctx.currentTime + 0.1) {
     _beatCounter++;
     const isFirstBeat = _beatCounter % store.getState().option.beats === 0;
-    _scheduleNote(ctx, isFirstBeat ? "ACCENT" : "REGULAR", _nextNoteSec);
+    _scheduleNote(ctx, isFirstBeat ? "accent" : "regular", _nextNoteSec);
 
     const { bpm, beats } = store.getState().option;
     _nextNoteSec += 60 / bpm;
