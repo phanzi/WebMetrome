@@ -6,6 +6,7 @@ import { BpmCard } from "@/components/ctrl/BpmCard";
 import { LatencyOffsetCard } from "@/components/ctrl/LatencyCard";
 import { SavedCard } from "@/components/ctrl/SavedCard";
 import { VolumeCard } from "@/components/ctrl/VolumeCard";
+import { SwapReturn } from "@/components/swap";
 import { metronome, MetronomeOption } from "@/shared/lib/metronome";
 import { room } from "@/shared/lib/room";
 import { ThemeContext, ThemeProvider } from "@/shared/lib/theme";
@@ -27,7 +28,7 @@ export const Route = createRootRoute({
   ssr: true,
   shellComponent: ({ children }) => {
     return (
-      <html suppressHydrationWarning>
+      <html lang="en" suppressHydrationWarning>
         <head>
           <HeadContent />
         </head>
@@ -179,7 +180,13 @@ function RootLayout() {
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold">Sync Metronome</h1>
+        <SwapReturn>
+          <h1 className="swap text-center text-2xl font-bold">
+            <span className="swap-off">Sync Metronome</span>
+            <span className="swap-on">{import.meta.env.VITE_APP_VERSION}</span>
+          </h1>
+        </SwapReturn>
+
         <ContextConsumer context={ThemeContext}>
           {({ value, next }) => (
             <button className="btn" onClick={next}>
