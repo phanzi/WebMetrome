@@ -85,7 +85,8 @@ export function ThemeProvider(props: PropsWithChildren) {
           `const parsed = JSON.parse(value);`,
           `if (!parsed.value) return`,
           `if (parsed.value === "system") return`,
-          `document.documentElement.setAttribute("data-theme", parsed.value)`,
+          `console.log("setting theme to", parsed.value)`,
+          `document.documentElement.setAttribute("data-theme", "base-" + parsed.value)`,
           `} catch {}`,
           `})()`,
         ].join("\n")}
