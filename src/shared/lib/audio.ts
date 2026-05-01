@@ -107,6 +107,7 @@ const store = createStore<Store>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         volume: state.volume,
+        preset: state.preset,
       }),
     },
   ),
