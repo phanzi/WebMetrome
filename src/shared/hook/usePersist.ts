@@ -21,5 +21,5 @@ export function usePersist<S>(
     localStorage.setItem(key, JSON.stringify({ value }));
   }, [value]);
 
-  return [value, setValue] as const;
+  return stateReturn;
 }
