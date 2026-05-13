@@ -2,7 +2,7 @@ import { cn } from "@/shared/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import { PropsWithChildren } from "react";
 
-const beatDotClass = cva(
+const beatPanelClass = cva(
   "rounded-full transition-all duration-100 flex items-center justify-center text-neutral-content",
   {
     variants: {
@@ -12,7 +12,7 @@ const beatDotClass = cva(
       },
       state: {
         active: "scale-110",
-        inactive: "bg-neutral",
+        inactive: "",
       },
     },
     compoundVariants: [
@@ -34,13 +34,13 @@ const beatDotClass = cva(
   },
 );
 
-type Props = VariantProps<typeof beatDotClass> &
+type Props = VariantProps<typeof beatPanelClass> &
   PropsWithChildren<{
     className?: string;
   }>;
 
-export function BeatDot(props: Props) {
+export function BeatPanel(props: Props) {
   const { className, children, ...rest } = props;
 
-  return <div className={cn(beatDotClass(rest), className)}>{children}</div>;
+  return <div className={cn(beatPanelClass(rest), className)}>{children}</div>;
 }

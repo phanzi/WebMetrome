@@ -1,5 +1,4 @@
-import { BeatDot } from "@/components/BeatDot";
-import { Card } from "@/components/Card";
+import { PreviewCard } from "@/components/PreviewCard";
 import { BeatCard } from "@/components/ctrl/BeatCard";
 import { BeatHzCard } from "@/components/ctrl/BeatHzCard";
 import { BpmCard } from "@/components/ctrl/BpmCard";
@@ -19,7 +18,6 @@ import {
   Scripts,
   useMatch,
 } from "@tanstack/react-router";
-import { range } from "es-toolkit";
 import { MoonIcon, SunIcon, SunMoonIcon, UnplugIcon } from "lucide-react";
 import { useStore } from "zustand";
 import "../index.css";
@@ -112,7 +110,6 @@ function RootLayout() {
     metronome.store,
     (store) => store.option.subDivision,
   );
-  const beatIndex = useStore(metronome.store, (store) => store.beatIndex);
   const isPlaying = useStore(metronome.store, (store) => store.isPlaying);
 
   /**
@@ -200,33 +197,7 @@ function RootLayout() {
       </header>
 
       <main className="space-y-4">
-        <Card className="sticky top-4 z-10 flex-row shadow-lg">
-          <div className="flex w-full p-4">
-            <BeatDot
-              className="w-0 border-0 outline-0"
-              variant="accent"
-            ></BeatDot>
-            <div
-              className={cn(
-                "flex w-full items-center justify-center gap-2",
-                beats > 10 && "gap-1.5",
-                beats > 20 && "gap-1",
-                beats > 40 && "gap-0.5",
-                beats > 80 && "gap-0.25",
-              )}
-            >
-              {range(0, beats).map((i) => (
-                <BeatDot
-                  key={i}
-                  variant={i === 0 ? "accent" : "regular"}
-                  state={beatIndex === i ? "active" : "inactive"}
-                >
-                  {beats <= 10 ? i + 1 : ""}
-                </BeatDot>
-              ))}
-            </div>
-          </div>
-        </Card>
+        <PreviewCard />
 
         <BpmCard
           bpm={bpm}
@@ -249,12 +220,13 @@ function RootLayout() {
       <footer className="contents">
         <button
           className={cn(
-            "btn btn-xl sticky bottom-4 w-full",
+            "btn btn-xl sticky bottom-4 z-10 w-full",
             isPlaying ? "btn-warning" : "btn-primary",
           )}
           onClick={togglePlay}
           disabled={playDisabled}
         >
+          {/* {isPlaying ? <PauseIcon /> : <PlayIcon />} */}
           {isPlaying ? "STOP" : "START"}
         </button>
       </footer>
